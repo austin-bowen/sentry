@@ -1,31 +1,124 @@
+#include <AsyncTimer.h>
+
 #include "SentryIMU.h"
 
-// https://github.com/RCmags/imuFilter
-#include <imuFilter.h>
 
-
-int RIGHT_MOTOR_PWM_PIN   = 9;
-int RIGHT_MOTOR_DIR_PIN   = 10;
-int RIGHT_MOTOR_ENC_A_PIN = 0;
-int RIGHT_MOTOR_ENC_B_PIN = 1;
+// Pin assignments
+int BATTERY_MONITOR_PIN = 0;
 
 int LEFT_MOTOR_PWM_PIN   = 7;
 int LEFT_MOTOR_DIR_PIN   = 8;
-int LEFT_MOTOR_ENC_A_PIN = 2;
-int LEFT_MOTOR_ENC_B_PIN = 3;
+int LEFT_MOTOR_ENC_A_PIN = 5;
+int LEFT_MOTOR_ENC_B_PIN = 6;
+
+int RIGHT_MOTOR_PWM_PIN   = 9;
+int RIGHT_MOTOR_DIR_PIN   = 10;
+int RIGHT_MOTOR_ENC_A_PIN = 3;
+int RIGHT_MOTOR_ENC_B_PIN = 4;
 
 
+AsyncTimer async;
+
+// Battery stuff
+const float FULL_BATTERY_VOLTAGE = 4.2f * 2;
+const float EMPTY_BATTERY_VOLTAGE = 3.2f * 2;
+const byte LOW_BATTERY_LEVEL = 20;
+float battery_voltage = FULL_BATTERY_VOLTAGE;
+
+// IMU stuff
 SentryIMU::SentryIMU imu;
-
-constexpr float IMU_FILTER_GAIN = 0.1;
-imuFilter<&IMU_FILTER_GAIN> imu_filter;
+SentryIMU::IMUSample imu_sample;
 
 
 void setup() {
-  Serial.begin(115200);
+  setup_async_debug();
 
+  setup_battery_monitor();
   setup_imu();
   setup_motors();
+}
+
+
+void setup_async_debug() {
+  Serial.begin(115200);
+
+  async.setInterval([]() {
+//    print_imu_sample()
+
+    Serial.println("batt_volt,batt_lvl");
+    Serial.print(battery_voltage);
+    Serial.print(',');
+    Serial.print(get_battery_level());
+
+    Serial.println();
+  }, 1000 / 20);
+}
+
+
+void print_imu_sample() {
+  Serial.print(imu_sample.roll);
+  Serial.print(',');
+  Serial.print(imu_sample.pitch);
+  Serial.print(',');
+  Serial.print(imu_sample.yaw);
+}
+
+
+void setup_battery_monitor() {
+  check_battery_level();
+
+  async.setInterval(check_battery_level, 1000 / 1);
+}
+
+
+void check_battery_level() {
+  update_battery_voltage();
+
+  byte battery_level = get_battery_level();
+  if (battery_level <= LOW_BATTERY_LEVEL) {
+    warn_low_battery();
+  }
+
+  // Display battery level
+  analogWrite(LEDG, 255 * (100 - battery_level) / 100);
+  analogWrite(LEDR, 255 * battery_level / 100);
+}
+
+
+void update_battery_voltage() {
+  battery_voltage = read_battery_voltage();
+}
+
+
+float read_battery_voltage() {
+  // Raw ADC reading [0..1023]
+  float voltage = analogRead(BATTERY_MONITOR_PIN);
+
+  // Actual voltage read [0.0V .. 3.3V]
+  voltage *= 3.3f / 1023;
+
+  // Actual battery voltage
+  static const float voltage_divider_scalar = 10.0f / (21.7f + 10.0f);
+  voltage /= voltage_divider_scalar;
+
+  return voltage;
+}
+
+
+byte get_battery_level() {
+  // Linearly interpolate battery voltage [full..empty] to level [0..100]
+  float level = 100.f * (battery_voltage - EMPTY_BATTERY_VOLTAGE) / (FULL_BATTERY_VOLTAGE - EMPTY_BATTERY_VOLTAGE);
+
+  // Clamp level to [0..100]
+  level = min(max(0, level), 100);
+
+  // Round level to nearest int
+  return round(level);
+}
+
+
+void warn_low_battery() {
+  // TODO
 }
 
 
@@ -33,7 +126,10 @@ void setup_imu() {
   imu.Begin();
   imu.Calibrate();
 
-  imu_filter.setup(imu.GetAccelX(), imu.GetAccelY(), imu.GetAccelZ());
+  // Update the IMU sample periodically
+  async.setInterval([]() {
+    imu.Sample(&imu_sample);
+  }, 1000 / 100);
 }
 
 
@@ -74,14 +170,13 @@ void setup_motors() {
 
 
 void loop() {
-  avoid_objects();
+  async.handle();
 }
 
 
 void avoid_objects() {
   if (detected_bump()) {
-//    avoid();
-    drive_forward();
+    avoid();
   } else {
     drive_forward();
   }
@@ -89,43 +184,20 @@ void avoid_objects() {
 
 
 bool detected_bump() {
-  get_pitch();
+  SentryIMU::IMUSample sample;
+  imu.Sample(&sample);
 
-//  Serial.print(imu.GetGyroX());
-//  Serial.print(',');
-//  Serial.print(imu.GetGyroY());
-//  Serial.print(',');
-//  Serial.print(imu.GetGyroZ());
-//  Serial.println();
-
-  float accel = imu.GetAccelY();
-
-  return accel >= 2.0f;
-}
-
-
-float get_pitch() {
-  imu_filter.update(
-    imu.GetGyroX() * PI / 180.f,
-    imu.GetGyroY() * PI / 180.f,
-    imu.GetGyroZ() * PI / 180.f,
-    imu.GetAccelX(),
-    imu.GetAccelY(),
-    imu.GetAccelZ()
-  );
-
-  float roll = imu_filter.roll();
-  float pitch = imu_filter.pitch();
-  float yaw = imu_filter.yaw();
-
-  Serial.print(roll);
+  Serial.print(sample.roll);
   Serial.print(',');
-  Serial.print(pitch);
+  Serial.print(sample.pitch);
   Serial.print(',');
-  Serial.print(yaw);
+  Serial.print(sample.yaw);
   Serial.println();
 
-  return pitch;
+//  return sample.accel_y >= 2.0f;
+
+  float max_angle = PI / 8.f;
+  return sample.pitch >= max_angle || abs(sample.roll) >= max_angle;
 }
 
 
