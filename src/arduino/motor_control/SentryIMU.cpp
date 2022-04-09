@@ -1,4 +1,5 @@
 #include <Filters.h>
+#include <imuFilter.h>
 #include <LSM6DS3.h>
 #include <Wire.h>
 
@@ -79,6 +80,8 @@ namespace SentryIMU {
       // Now that offset has been calculated, reset the filters for this axis
       ResetFilters(axis_index);
     }
+
+    orientation_filter_.setup(GetAccelX(), GetAccelY(), GetAccelZ());
   }
 
   void SentryIMU::ResetFilters(const int axis_index) {
@@ -109,9 +112,9 @@ namespace SentryIMU {
   float SentryIMU::GetAccelRaw(const int axis_index) {
     switch (axis_index) {
       case X_INDEX:
-        return xiao_imu_->readFloatAccelY();
+        return -xiao_imu_->readFloatAccelY();
       case Y_INDEX:
-        return -xiao_imu_->readFloatAccelX();
+        return xiao_imu_->readFloatAccelX();
       case Z_INDEX:
         return xiao_imu_->readFloatAccelZ();
       default:
@@ -153,9 +156,9 @@ namespace SentryIMU {
   float SentryIMU::GetGyroRaw(const int axis_index) {
     switch (axis_index) {
       case X_INDEX:
-        return xiao_imu_->readFloatGyroY();
+        return -xiao_imu_->readFloatGyroY();
       case Y_INDEX:
-        return -xiao_imu_->readFloatGyroX();
+        return xiao_imu_->readFloatGyroX();
       case Z_INDEX:
         return xiao_imu_->readFloatGyroZ();
       default:
@@ -182,6 +185,50 @@ namespace SentryIMU {
     // Filter gyro
 //    gyro = gyro_filters_[axis_index]->get(raw_gyro, dt);
 
+    // Convert from deg/s to rad/s
+    gyro *= PI / 180.f;
+
     return gyro;
+  }
+
+  void SentryIMU::Sample(IMUSample *imu_sample) {
+    static bool is_first_run = true;
+    static unsigned long last_t_us;
+
+    // Populate times
+    imu_sample->t_us = micros();
+    imu_sample->dt_s = is_first_run
+                       ? 0L
+                       : (imu_sample->t_us - last_t_us) / 1000000.f;
+    is_first_run = false;
+    last_t_us = imu_sample->t_us;
+
+    // Populate accel
+    imu_sample->accel_x = GetAccelX();
+    imu_sample->accel_y = GetAccelY();
+    imu_sample->accel_z = GetAccelZ();
+
+    // Populate gyro
+    imu_sample->gyro_x = GetGyroX();
+    imu_sample->gyro_y = GetGyroY();
+    imu_sample->gyro_z = GetGyroZ();
+
+    // Update orientation filter
+    orientation_filter_.update(
+      imu_sample->gyro_x,
+      imu_sample->gyro_y,
+      imu_sample->gyro_z,
+      imu_sample->accel_x,
+      imu_sample->accel_y,
+      imu_sample->accel_z
+    );
+
+    // Populate orientation
+    // Note: These follow the right-hand rule, except for the pitch,
+    // so that positive pitch values correspond to the front of the
+    // robot tilting up.
+    imu_sample->roll = orientation_filter_.roll();
+    imu_sample->pitch = -orientation_filter_.pitch();
+    imu_sample->yaw = orientation_filter_.yaw();
   }
 }
