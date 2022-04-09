@@ -1,29 +1,37 @@
+// https://github.com/Aasim-A/AsyncTimer
 #include <AsyncTimer.h>
 
+#include "BatteryMonitor.h"
 #include "SentryIMU.h"
 
 
 // Pin assignments
-int BATTERY_MONITOR_PIN = 0;
+const int BATTERY_MONITOR_PIN = 0;
 
-int LEFT_MOTOR_PWM_PIN   = 7;
-int LEFT_MOTOR_DIR_PIN   = 8;
-int LEFT_MOTOR_ENC_A_PIN = 5;
-int LEFT_MOTOR_ENC_B_PIN = 6;
+const int LEFT_MOTOR_PWM_PIN   = 7;
+const int LEFT_MOTOR_DIR_PIN   = 8;
+const int LEFT_MOTOR_ENC_A_PIN = 5;
+const int LEFT_MOTOR_ENC_B_PIN = 6;
 
-int RIGHT_MOTOR_PWM_PIN   = 9;
-int RIGHT_MOTOR_DIR_PIN   = 10;
-int RIGHT_MOTOR_ENC_A_PIN = 3;
-int RIGHT_MOTOR_ENC_B_PIN = 4;
+const int RIGHT_MOTOR_PWM_PIN   = 9;
+const int RIGHT_MOTOR_DIR_PIN   = 10;
+const int RIGHT_MOTOR_ENC_A_PIN = 3;
+const int RIGHT_MOTOR_ENC_B_PIN = 4;
 
 
 AsyncTimer async;
 
-// Battery stuff
-const float FULL_BATTERY_VOLTAGE = 4.2f * 2;
-const float EMPTY_BATTERY_VOLTAGE = 3.2f * 2;
-const byte LOW_BATTERY_LEVEL = 20;
-float battery_voltage = FULL_BATTERY_VOLTAGE;
+
+BatteryMonitor battery_monitor(
+  BATTERY_MONITOR_PIN,
+  4.2f * 2,   // Full voltage
+  3.2f * 2,   // Empty voltage
+  20,         // Low level (percent)
+  // ADC to voltage scalar
+  (3.30f / 1023)              // Convert raw ADC to actual voltage read
+  * ((21.7f + 10.0f) / 10.0f) // Convert actual voltage to battery voltage, which
+                              // is stepped down by a resistor voltage divider
+);
 
 // IMU stuff
 SentryIMU::SentryIMU imu;
@@ -43,77 +51,51 @@ void setup_async_debug() {
   Serial.begin(115200);
 
   async.setInterval([]() {
-//    print_imu_sample()
-
-    Serial.println("batt_volt,batt_lvl");
-    Serial.print(battery_voltage);
-    Serial.print(',');
-    Serial.print(get_battery_level());
-
-    Serial.println();
+//    print_imu_sample();
+//    print_battery_stats();/
   }, 1000 / 20);
 }
 
 
 void print_imu_sample() {
+  Serial.println("roll,pitch,yaw");
   Serial.print(imu_sample.roll);
   Serial.print(',');
   Serial.print(imu_sample.pitch);
   Serial.print(',');
   Serial.print(imu_sample.yaw);
+  Serial.println();
+}
+
+
+void print_battery_stats() {
+  Serial.println("batt_volt,batt_lvl");
+  Serial.print(battery_monitor.GetVoltage());
+  Serial.print(',');
+  Serial.print(battery_monitor.GetLevel());
+  Serial.println();
 }
 
 
 void setup_battery_monitor() {
   check_battery_level();
 
-  async.setInterval(check_battery_level, 1000 / 1);
+  // Check battery level once per second
+  async.setInterval(check_battery_level, 1000);
 }
 
 
 void check_battery_level() {
-  update_battery_voltage();
+  battery_monitor.Update();
 
-  byte battery_level = get_battery_level();
-  if (battery_level <= LOW_BATTERY_LEVEL) {
+  if (battery_monitor.IsLow()) {
     warn_low_battery();
   }
 
-  // Display battery level
+  // Display battery level on LED
+  byte battery_level = battery_monitor.GetLevel();
   analogWrite(LEDG, 255 * (100 - battery_level) / 100);
   analogWrite(LEDR, 255 * battery_level / 100);
-}
-
-
-void update_battery_voltage() {
-  battery_voltage = read_battery_voltage();
-}
-
-
-float read_battery_voltage() {
-  // Raw ADC reading [0..1023]
-  float voltage = analogRead(BATTERY_MONITOR_PIN);
-
-  // Actual voltage read [0.0V .. 3.3V]
-  voltage *= 3.3f / 1023;
-
-  // Actual battery voltage
-  static const float voltage_divider_scalar = 10.0f / (21.7f + 10.0f);
-  voltage /= voltage_divider_scalar;
-
-  return voltage;
-}
-
-
-byte get_battery_level() {
-  // Linearly interpolate battery voltage [full..empty] to level [0..100]
-  float level = 100.f * (battery_voltage - EMPTY_BATTERY_VOLTAGE) / (FULL_BATTERY_VOLTAGE - EMPTY_BATTERY_VOLTAGE);
-
-  // Clamp level to [0..100]
-  level = min(max(0, level), 100);
-
-  // Round level to nearest int
-  return round(level);
 }
 
 
