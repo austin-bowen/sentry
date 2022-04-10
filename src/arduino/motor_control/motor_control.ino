@@ -10,13 +10,13 @@ const int BATTERY_MONITOR_PIN = 0;
 
 const int LEFT_MOTOR_PWM_PIN   = 7;
 const int LEFT_MOTOR_DIR_PIN   = 8;
-const int LEFT_MOTOR_ENC_A_PIN = 5;
-const int LEFT_MOTOR_ENC_B_PIN = 6;
+const int LEFT_MOTOR_ENC_A_PIN = 3;
+const int LEFT_MOTOR_ENC_B_PIN = 4;
 
 const int RIGHT_MOTOR_PWM_PIN   = 9;
 const int RIGHT_MOTOR_DIR_PIN   = 10;
-const int RIGHT_MOTOR_ENC_A_PIN = 3;
-const int RIGHT_MOTOR_ENC_B_PIN = 4;
+const int RIGHT_MOTOR_ENC_A_PIN = 5;
+const int RIGHT_MOTOR_ENC_B_PIN = 6;
 
 
 AsyncTimer async;
@@ -38,6 +38,12 @@ SentryIMU::SentryIMU imu;
 SentryIMU::IMUSample imu_sample;
 
 
+// Motor stuff
+const int TICKS_PER_ROTATION = 900;
+volatile long left_motor_position = 0L;
+volatile long right_motor_position = 0L;
+
+
 void setup() {
   setup_async_debug();
 
@@ -47,6 +53,7 @@ void setup() {
 
 //  setup_avoid_objects();
 //  setup_track_heading();
+//  setup_track_motor_position();
 }
 
 
@@ -56,6 +63,7 @@ void setup_async_debug() {
   async.setInterval([]() {
     print_imu_sample();
 //    print_battery_stats();
+//    print_encoders();
   }, 1000 / 20);
 }
 
@@ -76,6 +84,18 @@ void print_battery_stats() {
   Serial.print(battery_monitor.GetVoltage());
   Serial.print(',');
   Serial.print(battery_monitor.GetLevel());
+  Serial.println();
+}
+
+
+void print_encoders() {
+  Serial.println("left_motor_pos,right_motor_pos");
+  Serial.print(left_motor_position);
+  Serial.print(',');
+  Serial.print(right_motor_position);
+//  Serial.print(digitalRead(LEFT_MOTOR_ENC_A_PIN));
+//  Serial.print(',');
+//  Serial.print(digitalRead(LEFT_MOTOR_ENC_B_PIN));
   Serial.println();
 }
 
@@ -120,37 +140,80 @@ void setup_imu() {
 
 void setup_motors() {
   // Setup left motor
-  pinMode(LEFT_MOTOR_ENC_A_PIN, INPUT);
-  pinMode(LEFT_MOTOR_ENC_B_PIN, INPUT);
 //  left_motor.forward_check_func = can_move_left_forward;
 
   // Setup right motor
-  pinMode(RIGHT_MOTOR_ENC_A_PIN, INPUT);
-  pinMode(RIGHT_MOTOR_ENC_B_PIN, INPUT);
 //  right_motor.forward_check_func = can_move_right_forward;
-//  right_motor.debug = false;
 
   // Setup interrupts
-//  attachInterrupt(
-//    digitalPinToInterrupt(RIGHT_MOTOR_ENC_A_PIN),
-//    handle_right_motor_enc_a_change,
-//    CHANGE
-//  );
-//  attachInterrupt(
-//    digitalPinToInterrupt(RIGHT_MOTOR_ENC_B_PIN),
-//    handle_right_motor_enc_b_change,
-//    CHANGE
-//  );
-//  attachInterrupt(
-//    digitalPinToInterrupt(LEFT_MOTOR_ENC_A_PIN),
-//    handle_left_motor_enc_a_change,
-//    CHANGE
-//  );
-//  attachInterrupt(
-//    digitalPinToInterrupt(LEFT_MOTOR_ENC_B_PIN),
-//    handle_left_motor_enc_b_change,
-//    CHANGE
-//  );
+  attachInterrupt(
+    digitalPinToInterrupt(LEFT_MOTOR_ENC_A_PIN),
+    handle_left_motor_enc_a_change,
+    CHANGE
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(LEFT_MOTOR_ENC_B_PIN),
+    handle_left_motor_enc_b_change,
+    CHANGE
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(RIGHT_MOTOR_ENC_A_PIN),
+    handle_right_motor_enc_a_change,
+    CHANGE
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(RIGHT_MOTOR_ENC_B_PIN),
+    handle_right_motor_enc_b_change,
+    CHANGE
+  );
+}
+
+
+void handle_left_motor_enc_a_change() {
+  bool enc_a = digitalRead(LEFT_MOTOR_ENC_A_PIN);
+  bool enc_b = digitalRead(LEFT_MOTOR_ENC_B_PIN);
+
+  if ((enc_a && !enc_b) || (!enc_a && enc_b)) {
+    left_motor_position -= 1;
+  } else {
+    left_motor_position += 1;
+  }
+}
+
+
+void handle_left_motor_enc_b_change() {
+  bool enc_a = digitalRead(LEFT_MOTOR_ENC_A_PIN);
+  bool enc_b = digitalRead(LEFT_MOTOR_ENC_B_PIN);
+
+  if ((enc_a && enc_b) || (!enc_a && !enc_b)) {
+    left_motor_position -= 1;
+  } else {
+    left_motor_position += 1;
+  }
+}
+
+
+void handle_right_motor_enc_a_change() {
+  bool enc_a = digitalRead(RIGHT_MOTOR_ENC_A_PIN);
+  bool enc_b = digitalRead(RIGHT_MOTOR_ENC_B_PIN);
+
+  if ((enc_a && !enc_b) || (!enc_a && enc_b)) {
+    right_motor_position += 1;
+  } else {
+    right_motor_position -= 1;
+  }
+}
+
+
+void handle_right_motor_enc_b_change() {
+  bool enc_a = digitalRead(RIGHT_MOTOR_ENC_A_PIN);
+  bool enc_b = digitalRead(RIGHT_MOTOR_ENC_B_PIN);
+
+  if ((enc_a && enc_b) || (!enc_a && !enc_b)) {
+    right_motor_position += 1;
+  } else {
+    right_motor_position -= 1;
+  }
 }
 
 
@@ -234,6 +297,22 @@ void setup_track_heading() {
 //    speed = min(max(-0.5, speed), 0.5);
 
     drive(speed, -speed);
+  }, 1000 / 10);
+}
+
+
+void setup_track_motor_position() {
+  static long target_pos = TICKS_PER_ROTATION * 10;
+
+  async.setInterval([]() {
+    long error = target_pos - left_motor_position;
+//    long error = target_pos - right_motor_position;
+
+    float speed = 0.01f * error;
+    speed = min(max(-0.5, speed), 0.5);
+
+    drive(speed, 0);
+//    drive(0, speed);
   }, 1000 / 10);
 }
 
