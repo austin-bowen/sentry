@@ -44,6 +44,9 @@ void setup() {
   setup_battery_monitor();
   setup_imu();
   setup_motors();
+
+//  setup_avoid_objects();
+//  setup_track_heading();
 }
 
 
@@ -51,8 +54,8 @@ void setup_async_debug() {
   Serial.begin(115200);
 
   async.setInterval([]() {
-//    print_imu_sample();
-//    print_battery_stats();/
+    print_imu_sample();
+//    print_battery_stats();
   }, 1000 / 20);
 }
 
@@ -151,69 +154,118 @@ void setup_motors() {
 }
 
 
-void loop() {
-  async.handle();
+void setup_avoid_objects() {
+  // Run this at 10Hz
+  async.setTimeout([]() {
+    avoid_objects();
+  }, 1000 / 10);
 }
 
 
 void avoid_objects() {
+  static float speed = 0.75;
+
   if (detected_bump()) {
-    avoid();
+    avoid(speed);
   } else {
-    drive_forward();
+    drive_forward(speed);
+    setup_avoid_objects();
   }
 }
 
 
 bool detected_bump() {
-  SentryIMU::IMUSample sample;
-  imu.Sample(&sample);
-
-  Serial.print(sample.roll);
-  Serial.print(',');
-  Serial.print(sample.pitch);
-  Serial.print(',');
-  Serial.print(sample.yaw);
-  Serial.println();
-
-//  return sample.accel_y >= 2.0f;
-
-  float max_angle = PI / 8.f;
-  return sample.pitch >= max_angle || abs(sample.roll) >= max_angle;
-}
-
-
-void avoid() {
-  drive(0.0, 0.0);
-  delay(500);
-
-  drive(-0.5, -0.5);
-  delay(1000);
-
-  drive(0.0, 0.0);
-  delay(500);
-
-  bool left = random(2);
-  if (left) {
-    drive(-0.5, 0.5);
-  } else {
-    drive(0.5, -0.5);
+  if (imu_sample.accel_x <= -3.0f) {
+    return true;
   }
-  delay(random(1000, 3000));
 
-  drive(0.0, 0.0);
-  delay(500);
+  static const float max_angle = PI / 8.f;
+  return imu_sample.pitch >= max_angle || abs(imu_sample.roll) >= max_angle;
 }
 
 
-void drive_forward() {
-  drive(0.5, 0.5);
+void avoid(const float speed_) {
+  static float speed = speed_;
+  speed = speed_;
+
+  stop_driving();
+
+  // Reverse
+  async.setTimeout([]() {
+    drive_backward(speed);
+
+    // Stop
+    async.setTimeout([]() {
+      stop_driving();
+
+      // Turn
+      async.setTimeout([]() {
+        const bool left = random(2);
+        left ? turn_left(speed) : turn_right(speed);
+
+        // Stop
+        async.setTimeout([]() {
+          stop_driving();
+
+          // Resume avoiding objects
+          async.setTimeout([]() {
+            setup_avoid_objects();
+          }, 250);
+        }, random(1000, 3000));
+      }, 250);
+    }, 2000);
+  }, 250);
+}
+
+
+void setup_track_heading() {
+  static float target_yaw = 0.0f;
+
+  async.setInterval([]() {
+    target_yaw = PI * sin(2 * PI * (millis() / 1000.f) / 30);
+
+    float error = (imu_sample.yaw - target_yaw) / PI;
+
+    if (abs(error) < 0.05) {
+      error = 0;
+    }
+
+    float speed = 5.0f * error;
+//    speed = min(max(-0.5, speed), 0.5);
+
+    drive(speed, -speed);
+  }, 1000 / 10);
+}
+
+
+void drive_forward(const float speed) {
+  drive(speed, speed);
+}
+
+
+void drive_backward(const float speed) {
+  drive(-speed, -speed);
+}
+
+
+void turn_left(const float speed) {
+  drive(-speed, speed);
+}
+
+
+void turn_right(const float speed) {
+  drive(speed, -speed);
+}
+
+
+void stop_driving() {
+  drive(0.0, 0.0);
 }
 
 
 void drive(float left, float right) {
-  left = -left;
-  right = -right;
+  left = min(max(-1, -left), 1);
+  right = min(max(-1, -right), 1);
 
   if (left >= 0.0) {
     analogWrite(LEFT_MOTOR_PWM_PIN, 255 * left);
@@ -230,4 +282,9 @@ void drive(float left, float right) {
     analogWrite(RIGHT_MOTOR_PWM_PIN, 255 * (1 + right));
     digitalWrite(RIGHT_MOTOR_DIR_PIN, 1);
   }
+}
+
+
+void loop() {
+  async.handle();
 }
