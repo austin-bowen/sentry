@@ -20,7 +20,7 @@ class MotorDriver {
     void InvertPowerOnReverse(bool invert);
 
   private:
-    const int MAX_PWM = 255;
+    static const int MAX_PWM = 255;
 
     int pwm_pin_;
     int dir_pin_;

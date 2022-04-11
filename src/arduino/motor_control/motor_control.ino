@@ -2,6 +2,7 @@
 #include <AsyncTimer.h>
 
 #include "BatteryMonitor.h"
+#include "Encoder.h"
 #include "MotorDriver.h"
 #include "SentryIMU.h"
 
@@ -45,8 +46,8 @@ MotorDriver left_motor_driver(LEFT_MOTOR_PWM_PIN, LEFT_MOTOR_DIR_PIN);
 MotorDriver right_motor_driver(RIGHT_MOTOR_PWM_PIN, RIGHT_MOTOR_DIR_PIN);
 // - Encoders
 const int TICKS_PER_ROTATION = 900;
-volatile long left_motor_position = 0L;
-volatile long right_motor_position = 0L;
+QuadratureEncoder left_motor_encoder(LEFT_MOTOR_ENC_A_PIN, LEFT_MOTOR_ENC_B_PIN, TICKS_PER_ROTATION);
+QuadratureEncoder right_motor_encoder(RIGHT_MOTOR_ENC_A_PIN, RIGHT_MOTOR_ENC_B_PIN, TICKS_PER_ROTATION);
 
 
 void setup() {
@@ -66,9 +67,9 @@ void setup_async_debug() {
   Serial.begin(115200);
 
   async.setInterval([]() {
-    print_imu_sample();
+//    print_imu_sample();
 //    print_battery_stats();
-//    print_encoders();
+    print_encoders();
   }, 1000 / 20);
 }
 
@@ -95,9 +96,9 @@ void print_battery_stats() {
 
 void print_encoders() {
   Serial.println("left_motor_pos,right_motor_pos");
-  Serial.print(left_motor_position);
+  Serial.print(left_motor_encoder.ticks);
   Serial.print(',');
-  Serial.print(right_motor_position);
+  Serial.print(right_motor_encoder.ticks);
   Serial.println();
 }
 
@@ -145,76 +146,26 @@ void setup_motors() {
   left_motor_driver.Reverse(true);
   right_motor_driver.Reverse(true);
 
-  // Setup interrupts
-  attachInterrupt(
-    digitalPinToInterrupt(LEFT_MOTOR_ENC_A_PIN),
+  // Setup encoders
+  left_motor_encoder.Reverse(true);
+  left_motor_encoder.SetupEncPinChangeHandlers(
     handle_left_motor_enc_a_change,
-    CHANGE
+    handle_left_motor_enc_b_change
   );
-  attachInterrupt(
-    digitalPinToInterrupt(LEFT_MOTOR_ENC_B_PIN),
-    handle_left_motor_enc_b_change,
-    CHANGE
-  );
-  attachInterrupt(
-    digitalPinToInterrupt(RIGHT_MOTOR_ENC_A_PIN),
+  right_motor_encoder.SetupEncPinChangeHandlers(
     handle_right_motor_enc_a_change,
-    CHANGE
-  );
-  attachInterrupt(
-    digitalPinToInterrupt(RIGHT_MOTOR_ENC_B_PIN),
-    handle_right_motor_enc_b_change,
-    CHANGE
+    handle_right_motor_enc_b_change
   );
 }
 
 
-void handle_left_motor_enc_a_change() {
-  bool enc_a = digitalRead(LEFT_MOTOR_ENC_A_PIN);
-  bool enc_b = digitalRead(LEFT_MOTOR_ENC_B_PIN);
+void handle_left_motor_enc_a_change() { left_motor_encoder.HandleEncAChange(); }
 
-  if ((enc_a && !enc_b) || (!enc_a && enc_b)) {
-    left_motor_position -= 1;
-  } else {
-    left_motor_position += 1;
-  }
-}
+void handle_left_motor_enc_b_change() { left_motor_encoder.HandleEncBChange(); }
 
+void handle_right_motor_enc_a_change() { right_motor_encoder.HandleEncAChange(); }
 
-void handle_left_motor_enc_b_change() {
-  bool enc_a = digitalRead(LEFT_MOTOR_ENC_A_PIN);
-  bool enc_b = digitalRead(LEFT_MOTOR_ENC_B_PIN);
-
-  if ((enc_a && enc_b) || (!enc_a && !enc_b)) {
-    left_motor_position -= 1;
-  } else {
-    left_motor_position += 1;
-  }
-}
-
-
-void handle_right_motor_enc_a_change() {
-  bool enc_a = digitalRead(RIGHT_MOTOR_ENC_A_PIN);
-  bool enc_b = digitalRead(RIGHT_MOTOR_ENC_B_PIN);
-
-  if ((enc_a && !enc_b) || (!enc_a && enc_b)) {
-    right_motor_position += 1;
-  } else {
-    right_motor_position -= 1;
-  }
-}
-
-
-void handle_right_motor_enc_b_change() {
-  bool enc_a = digitalRead(RIGHT_MOTOR_ENC_A_PIN);
-  bool enc_b = digitalRead(RIGHT_MOTOR_ENC_B_PIN);
-
-  if ((enc_a && enc_b) || (!enc_a && !enc_b)) {
-    right_motor_position += 1;
-  } else {
-    right_motor_position -= 1;
-  }
-}
+void handle_right_motor_enc_b_change() { right_motor_encoder.HandleEncBChange(); }
 
 
 void setup_avoid_objects() {
@@ -305,7 +256,7 @@ void setup_track_motor_position() {
   static long target_pos = TICKS_PER_ROTATION * 10;
 
   async.setInterval([]() {
-    long error = target_pos - left_motor_position;
+    long error = target_pos - left_motor_encoder.ticks;
 //    long error = target_pos - right_motor_position;
 
     float speed = 0.01f * error;
