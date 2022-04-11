@@ -2,6 +2,7 @@
 #include <AsyncTimer.h>
 
 #include "BatteryMonitor.h"
+#include "MotorDriver.h"
 #include "SentryIMU.h"
 
 
@@ -39,6 +40,10 @@ SentryIMU::IMUSample imu_sample;
 
 
 // Motor stuff
+// - Drivers
+MotorDriver left_motor_driver(LEFT_MOTOR_PWM_PIN, LEFT_MOTOR_DIR_PIN);
+MotorDriver right_motor_driver(RIGHT_MOTOR_PWM_PIN, RIGHT_MOTOR_DIR_PIN);
+// - Encoders
 const int TICKS_PER_ROTATION = 900;
 volatile long left_motor_position = 0L;
 volatile long right_motor_position = 0L;
@@ -93,9 +98,6 @@ void print_encoders() {
   Serial.print(left_motor_position);
   Serial.print(',');
   Serial.print(right_motor_position);
-//  Serial.print(digitalRead(LEFT_MOTOR_ENC_A_PIN));
-//  Serial.print(',');
-//  Serial.print(digitalRead(LEFT_MOTOR_ENC_B_PIN));
   Serial.println();
 }
 
@@ -139,11 +141,9 @@ void setup_imu() {
 
 
 void setup_motors() {
-  // Setup left motor
-//  left_motor.forward_check_func = can_move_left_forward;
-
-  // Setup right motor
-//  right_motor.forward_check_func = can_move_right_forward;
+  // Setup motor drivers
+  left_motor_driver.Reverse(true);
+  right_motor_driver.Reverse(true);
 
   // Setup interrupts
   attachInterrupt(
@@ -343,24 +343,8 @@ void stop_driving() {
 
 
 void drive(float left, float right) {
-  left = min(max(-1, -left), 1);
-  right = min(max(-1, -right), 1);
-
-  if (left >= 0.0) {
-    analogWrite(LEFT_MOTOR_PWM_PIN, 255 * left);
-    digitalWrite(LEFT_MOTOR_DIR_PIN, 0);
-  } else {
-    analogWrite(LEFT_MOTOR_PWM_PIN, 255 * (1 + left));
-    digitalWrite(LEFT_MOTOR_DIR_PIN, 1);
-  }
-
-  if (right >= 0.0) {
-    analogWrite(RIGHT_MOTOR_PWM_PIN, 255 * right);
-    digitalWrite(RIGHT_MOTOR_DIR_PIN, 0);
-  } else {
-    analogWrite(RIGHT_MOTOR_PWM_PIN, 255 * (1 + right));
-    digitalWrite(RIGHT_MOTOR_DIR_PIN, 1);
-  }
+  left_motor_driver.SetPower(left);
+  right_motor_driver.SetPower(right);
 }
 
 
