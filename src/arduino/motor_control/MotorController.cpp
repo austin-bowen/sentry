@@ -6,7 +6,7 @@
 
 MotorController::MotorController(
   MotorDriver *motor_driver,
-  QuadratureEncoder *encoder,
+  Encoder *encoder,
   double k_p,
   double k_i,
   double k_d,

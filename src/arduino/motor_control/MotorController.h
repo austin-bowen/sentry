@@ -10,7 +10,7 @@ class MotorController {
   public:
     MotorController(
       MotorDriver *motor_driver,
-      QuadratureEncoder *encoder,
+      Encoder *encoder,
       double k_p,
       double k_i,
       double k_d,
@@ -20,7 +20,7 @@ class MotorController {
     ~MotorController();
 
     MotorDriver *GetMotorDriver() { return motor_driver_; }
-    QuadratureEncoder *GetEncoder() { return encoder_; }
+    Encoder *GetEncoder() { return encoder_; }
     PID * GetPid() { return pid_; }
 
     float GetTargetVelocity() { return pid_setpoint_; }
@@ -40,7 +40,7 @@ class MotorController {
 
   private:
     MotorDriver *motor_driver_;
-    QuadratureEncoder *encoder_;
+    Encoder *encoder_;
 
     PID *pid_;
     double pid_input_;

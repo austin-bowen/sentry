@@ -1,10 +1,17 @@
 #pragma once
 
 
-class QuadratureEncoder {
+class Encoder {
   public:
     volatile long ticks = 0L;
 
+    long GetTicks() { return ticks; }
+    void SetTicks(long ticks) { this->ticks = ticks; }
+};
+
+
+class QuadratureEncoder : public Encoder {
+  public:
     QuadratureEncoder(int enc_a_pin, int enc_b_pin, unsigned int ticks_per_rev);
 
     /**
@@ -16,7 +23,6 @@ class QuadratureEncoder {
     void HandleEncAChange();
     void HandleEncBChange();
 
-    long GetTicks() { return ticks; }
     long GetTicksPerRev() { return ticks_per_rev_; }
 
     void Reverse(bool reverse);
