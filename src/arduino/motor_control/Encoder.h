@@ -7,7 +7,12 @@ class QuadratureEncoder {
 
     QuadratureEncoder(int enc_a_pin, int enc_b_pin, unsigned int ticks_per_rev);
 
+    /**
+     * These handlers should be functions that simply call this encoder's
+     * HandleEncAChange() and HandleEncBChange() methods, respectively.
+     */
     void SetupEncPinChangeHandlers(void (*enc_a_handler)(), void (*enc_b_handler)());
+
     void HandleEncAChange();
     void HandleEncBChange();
 

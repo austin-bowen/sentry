@@ -3,6 +3,7 @@
 
 #include "BatteryMonitor.h"
 #include "Encoder.h"
+#include "MotorController.h"
 #include "MotorDriver.h"
 #include "SentryIMU.h"
 
@@ -48,6 +49,23 @@ MotorDriver right_motor_driver(RIGHT_MOTOR_PWM_PIN, RIGHT_MOTOR_DIR_PIN);
 const int TICKS_PER_ROTATION = 900;
 QuadratureEncoder left_motor_encoder(LEFT_MOTOR_ENC_A_PIN, LEFT_MOTOR_ENC_B_PIN, TICKS_PER_ROTATION);
 QuadratureEncoder right_motor_encoder(RIGHT_MOTOR_ENC_A_PIN, RIGHT_MOTOR_ENC_B_PIN, TICKS_PER_ROTATION);
+// - Controllers
+const int MOTOR_CONTROLLER_UPDATE_PERIOD = 1000 / 10;
+float k_p = 0.0002, k_i = 0.004, k_d = 0.0;
+MotorController left_motor_controller(
+  &left_motor_driver,
+  &left_motor_encoder,
+  k_p, k_i, k_d,
+  // Update period (ms)
+  MOTOR_CONTROLLER_UPDATE_PERIOD
+);
+MotorController right_motor_controller(
+  &right_motor_driver,
+  &right_motor_encoder,
+  k_p, k_i, k_d,
+  // Update period (ms)
+  MOTOR_CONTROLLER_UPDATE_PERIOD
+);
 
 
 void setup() {
@@ -69,7 +87,8 @@ void setup_async_debug() {
   async.setInterval([]() {
 //    print_imu_sample();
 //    print_battery_stats();
-    print_encoders();
+//    print_encoders();
+    print_motor_controllers();
   }, 1000 / 20);
 }
 
@@ -103,6 +122,19 @@ void print_encoders() {
 }
 
 
+void print_motor_controllers() {
+  Serial.println("left_vel_target,left_vel_actual,right_vel_target,right_vel_actual");
+  Serial.print(left_motor_controller.GetTargetVelocity());
+  Serial.print(',');
+  Serial.print(left_motor_controller.GetActualVelocity());
+  Serial.print(',');
+  Serial.print(right_motor_controller.GetTargetVelocity());
+  Serial.print(',');
+  Serial.print(right_motor_controller.GetActualVelocity());
+  Serial.println();
+}
+
+
 void setup_battery_monitor() {
   check_battery_level();
 
@@ -118,7 +150,7 @@ void check_battery_level() {
     warn_low_battery();
   }
 
-  // Display battery level on LED
+  // Display battery level on LED; green is 100%, red is 0%.
   byte battery_level = battery_monitor.GetLevel();
   analogWrite(LEDG, 255 * (100 - battery_level) / 100);
   analogWrite(LEDR, 255 * battery_level / 100);
@@ -156,6 +188,21 @@ void setup_motors() {
     handle_right_motor_enc_a_change,
     handle_right_motor_enc_b_change
   );
+
+  // Setup controllers
+  async.setInterval([]() {
+    left_motor_controller.Update();
+    right_motor_controller.Update();
+  }, MOTOR_CONTROLLER_UPDATE_PERIOD);
+
+  // TODO: REMOVE THIS
+  async.setInterval([]() {
+    float v;
+    v = 1200 * sin(2 * PI * millis() / 1000.f / 20);
+
+    left_motor_controller.SetTargetVelocity(-v);
+    right_motor_controller.SetTargetVelocity(v);
+  }, 1000 / 10);
 }
 
 
