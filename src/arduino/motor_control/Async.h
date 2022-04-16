@@ -62,11 +62,14 @@ namespace Async {
       void RemoveAll();
 
       /** Returns the fraction of time [0..1] spent running callback functions.*/
-      // TODO: float GetLoad();
+      float GetLoad();
 
     protected:
       AsyncFunc *current_func_ = nullptr;
       unsigned long func_count_ = 0;
+
+      unsigned long time_running_ = 0;
+      unsigned long total_time_ = 0;
 
       void HandleOne();
 

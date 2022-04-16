@@ -1,6 +1,7 @@
 // https://github.com/Aasim-A/AsyncTimer
-#include <AsyncTimer.h>
+//#include <AsyncTimer.h>
 
+#include "Async.h"
 #include "BatteryMonitor.h"
 #include "Encoder.h"
 #include "Locomotion.h"
@@ -23,7 +24,7 @@ const int RIGHT_MOTOR_ENC_A_PIN = 5;
 const int RIGHT_MOTOR_ENC_B_PIN = 6;
 
 
-AsyncTimer async;
+Async::Async async;
 
 
 BatteryMonitor battery_monitor(
@@ -86,7 +87,7 @@ void setup() {
   setup_imu();
   setup_motors();
 
-//  setup_avoid_objects();
+  setup_avoid_objects();
 //  setup_track_heading();
 //  setup_track_motor_position();
 }
@@ -95,12 +96,20 @@ void setup() {
 void setup_async_debug() {
   Serial.begin(115200);
 
-  async.setInterval([]() {
+  async.RunForever(1000 / 20, []() {
+//    print_async_stats();
 //    print_imu_sample();
 //    print_battery_stats();
 //    print_encoders();
     print_motor_controllers();
-  }, 1000 / 20);
+  });
+}
+
+
+void print_async_stats() {
+  Serial.println("async_load");
+  Serial.print(async.GetLoad());
+  Serial.println();
 }
 
 
@@ -150,7 +159,7 @@ void setup_battery_monitor() {
   check_battery_level();
 
   // Check battery level once per second
-  async.setInterval(check_battery_level, 1000);
+  async.RunForever(1000, check_battery_level);
 }
 
 
@@ -178,9 +187,9 @@ void setup_imu() {
   imu.Calibrate();
 
   // Update the IMU sample periodically
-  async.setInterval([]() {
+  async.RunForever(1000 / 100, []() {
     imu.Sample(&imu_sample);
-  }, 1000 / 100);
+  });
 }
 
 
@@ -201,12 +210,12 @@ void setup_motors() {
   );
 
   // Setup controllers
-  async.setInterval([]() {
+  async.RunForever(MOTOR_CONTROLLER_UPDATE_PERIOD, []() {
     // TODO: CLEAN THIS UP
-//    left_motor_controller.Update();
-//    right_motor_controller.Update();
-    locomotion.Update();
-  }, MOTOR_CONTROLLER_UPDATE_PERIOD);
+    left_motor_controller.Update();
+    right_motor_controller.Update();
+//    locomotion.Update();
+  });
 }
 
 
@@ -221,14 +230,14 @@ void handle_right_motor_enc_b_change() { right_motor_encoder.HandleEncBChange();
 
 void setup_avoid_objects() {
   // Run this at 10Hz
-  async.setTimeout([]() {
+  async.RunOnce(1000 / 10, []() {
     avoid_objects();
-  }, 1000 / 10);
+  });
 }
 
 
 void avoid_objects() {
-  static float speed = 0.75;
+  static float speed = 1000;
 
   if (detected_bump()) {
     avoid(speed);
@@ -256,37 +265,37 @@ void avoid(const float speed_) {
   stop_driving();
 
   // Reverse
-  async.setTimeout([]() {
+  async.RunOnce(250, []() {
     drive_backward(speed);
 
     // Stop
-    async.setTimeout([]() {
+    async.RunOnce(2000, []() {
       stop_driving();
 
       // Turn
-      async.setTimeout([]() {
+      async.RunOnce(250, []() {
         const bool left = random(2);
         left ? turn_left(speed) : turn_right(speed);
 
         // Stop
-        async.setTimeout([]() {
+        async.RunOnce(random(1000, 3000), []() {
           stop_driving();
 
           // Resume avoiding objects
-          async.setTimeout([]() {
+          async.RunOnce(250, []() {
             setup_avoid_objects();
-          }, 250);
-        }, random(1000, 3000));
-      }, 250);
-    }, 2000);
-  }, 250);
+          });
+        });
+      });
+    });
+  });
 }
 
 
 void setup_track_heading() {
   static float target_yaw = 0.0f;
 
-  async.setInterval([]() {
+  async.RunForever(1000 / 10, []() {
     target_yaw = PI * sin(2 * PI * (millis() / 1000.f) / 30);
 
     float error = (imu_sample.yaw - target_yaw) / PI;
@@ -299,14 +308,14 @@ void setup_track_heading() {
 //    speed = min(max(-0.5, speed), 0.5);
 
     drive(speed, -speed);
-  }, 1000 / 10);
+  });
 }
 
 
 void setup_track_motor_position() {
   static long target_pos = TICKS_PER_ROTATION * 10;
 
-  async.setInterval([]() {
+  async.RunForever(1000 / 10, []() {
     long error = target_pos - left_motor_encoder.ticks;
 //    long error = target_pos - right_motor_position;
 
@@ -315,7 +324,7 @@ void setup_track_motor_position() {
 
     drive(speed, 0);
 //    drive(0, speed);
-  }, 1000 / 10);
+  });
 }
 
 
@@ -345,11 +354,11 @@ void stop_driving() {
 
 
 void drive(float left, float right) {
-  left_motor_driver.SetPower(left);
-  right_motor_driver.SetPower(right);
+  left_motor_controller.SetTargetVelocity(left);
+  right_motor_controller.SetTargetVelocity(right);
 }
 
 
 void loop() {
-  async.handle();
+  async.Handle();
 }

@@ -60,12 +60,6 @@ namespace Async {
     func_count_++;
   }
 
-  void Async::RemoveAll() {
-    while (HasFuncs()) {
-      RemoveFunc(current_func_);
-    }
-  }
-
   void Async::Handle() {
     for (unsigned long i = 0; i < func_count_; i++) {
       HandleOne();
@@ -88,6 +82,18 @@ namespace Async {
     }
   }
 
+  void Async::RemoveAll() {
+    while (HasFuncs()) {
+      RemoveFunc(current_func_);
+    }
+  }
+
+  float Async::GetLoad() {
+    // TODO: NOT THIS
+    return (float)time_running_ / millis();
+//    return (float)time_running_ / (float)total_time_;
+  }
+
   void Async::HandleOne() {
     if (!HasFuncs()) {
       return;
@@ -98,7 +104,9 @@ namespace Async {
       return;
     }
 
+    unsigned long t0 = millis();
     current_func_->Run();
+    time_running_ += millis() - t0;
 
     // All funcs could have been removed
     if (!HasFuncs()) {
