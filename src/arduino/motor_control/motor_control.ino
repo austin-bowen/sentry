@@ -3,6 +3,7 @@
 
 #include "BatteryMonitor.h"
 #include "Encoder.h"
+#include "Locomotion.h"
 #include "MotorController.h"
 #include "MotorDriver.h"
 #include "SentryIMU.h"
@@ -65,6 +66,16 @@ MotorController right_motor_controller(
   k_p, k_i, k_d,
   // Update period (ms)
   MOTOR_CONTROLLER_UPDATE_PERIOD
+);
+
+// Locomotion
+DifferentialDrive locomotion(
+  &left_motor_controller,
+  &right_motor_controller,
+  // Ticks per meter
+  6200,
+  // Track width [m]
+  0.22
 );
 
 
@@ -191,18 +202,11 @@ void setup_motors() {
 
   // Setup controllers
   async.setInterval([]() {
-    left_motor_controller.Update();
-    right_motor_controller.Update();
+    // TODO: CLEAN THIS UP
+//    left_motor_controller.Update();
+//    right_motor_controller.Update();
+    locomotion.Update();
   }, MOTOR_CONTROLLER_UPDATE_PERIOD);
-
-  // TODO: REMOVE THIS
-  async.setInterval([]() {
-    float v;
-    v = 1200 * sin(2 * PI * millis() / 1000.f / 20);
-
-    left_motor_controller.SetTargetVelocity(-v);
-    right_motor_controller.SetTargetVelocity(v);
-  }, 1000 / 10);
 }
 
 
