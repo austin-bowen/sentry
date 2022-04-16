@@ -18,6 +18,10 @@ void MotorDriver::SetPower(float power) {
   // Limit power to [-1, 1]
   power = min(max(-1, power), 1);
 
+  if (abs(power) < 0.2) {
+    power = 0.0;
+  }
+
   // Scale power to PWM max and round to nearest int
   int pwm = round(MAX_PWM * power);
 

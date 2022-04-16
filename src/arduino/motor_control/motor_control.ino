@@ -97,11 +97,11 @@ void setup_async_debug() {
   Serial.begin(115200);
 
   async.RunForever(1000 / 20, []() {
-//    print_async_stats();
+    print_async_stats();
 //    print_imu_sample();
 //    print_battery_stats();
 //    print_encoders();
-    print_motor_controllers();
+//    print_motor_controllers();
   });
 }
 
@@ -243,8 +243,9 @@ void avoid_objects() {
     avoid(speed);
   } else {
     drive_forward(speed);
-    setup_avoid_objects();
   }
+
+  setup_avoid_objects();
 }
 
 
@@ -258,37 +259,22 @@ bool detected_bump() {
 }
 
 
-void avoid(const float speed_) {
-  static float speed = speed_;
-  speed = speed_;
+void avoid(const float speed) {
+  stop_driving();
+  async.Delay(250);
+
+  drive_backward(speed);
+  async.Delay(2000);
 
   stop_driving();
+  async.Delay(250);
 
-  // Reverse
-  async.RunOnce(250, []() {
-    drive_backward(speed);
+  const bool left = random(2);
+  left ? turn_left(speed) : turn_right(speed);
+  async.Delay(random(1000, 3000));
 
-    // Stop
-    async.RunOnce(2000, []() {
-      stop_driving();
-
-      // Turn
-      async.RunOnce(250, []() {
-        const bool left = random(2);
-        left ? turn_left(speed) : turn_right(speed);
-
-        // Stop
-        async.RunOnce(random(1000, 3000), []() {
-          stop_driving();
-
-          // Resume avoiding objects
-          async.RunOnce(250, []() {
-            setup_avoid_objects();
-          });
-        });
-      });
-    });
-  });
+  stop_driving();
+  async.Delay(250);
 }
 
 
