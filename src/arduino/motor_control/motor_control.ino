@@ -96,7 +96,7 @@ void setup() {
 void setup_async_debug() {
   Serial.begin(115200);
 
-  async.RunForever(1000 / 20, []() {
+  async.RunForever(1000 / 1, []() {
     print_async_stats();
 //    print_imu_sample();
 //    print_battery_stats();
@@ -107,9 +107,10 @@ void setup_async_debug() {
 
 
 void print_async_stats() {
-  Serial.println("async_load");
-  Serial.print(async.GetLoad());
-  Serial.println();
+  async.PrintStats(Serial);
+//  Serial.println("async_load");
+//  Serial.print(async.GetLoad());
+//  Serial.println();
 }
 
 
@@ -230,7 +231,7 @@ void handle_right_motor_enc_b_change() { right_motor_encoder.HandleEncBChange();
 
 void setup_avoid_objects() {
   // Run this at 10Hz
-  async.RunOnce(1000 / 10, []() {
+  async.RunForever(1000 / 10, []() {
     avoid_objects();
   });
 }
@@ -244,8 +245,6 @@ void avoid_objects() {
   } else {
     drive_forward(speed);
   }
-
-  setup_avoid_objects();
 }
 
 

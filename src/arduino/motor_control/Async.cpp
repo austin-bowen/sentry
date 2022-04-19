@@ -4,7 +4,8 @@
 
 
 namespace Async {
-  AsyncFunc::AsyncFunc(void (*callback)(), unsigned long period, long num_runs) {
+  AsyncFunc::AsyncFunc(FuncId id, void (*callback)(), unsigned long period, long num_runs) {
+    this->id = id;
     this->callback = callback;
     this->period = period;
     this->remaining_runs = num_runs;
@@ -13,7 +14,7 @@ namespace Async {
   }
 
   bool AsyncFunc::IsReadyToRun() {
-    return !is_running && (millis() - last_t) >= period;
+    return is_enabled && !is_running && (millis() - last_t) >= period;
   }
 
   bool AsyncFunc::HasRunsRemaining() {
@@ -30,22 +31,27 @@ namespace Async {
     if (remaining_runs > 0) {
       remaining_runs--;
     }
+
+    // TODO: If the callback uses async.Delay(), it will be added to the runtime,
+    //  which gives a skewed result for how long it actually took to execute.
+    run_time = millis() - last_t;
   }
 
   Async::~Async() {
     RemoveAll();
   }
 
-  void Async::RunOnce(unsigned long ms, void (*callback)()) {
-    RunNumTimes(1, ms, callback);
+  FuncId Async::RunOnce(unsigned long ms, void (*callback)()) {
+    return RunNumTimes(1, ms, callback);
   }
 
-  void Async::RunForever(unsigned long ms, void (*callback)()) {
-    RunNumTimes(-1, ms, callback);
+  FuncId Async::RunForever(unsigned long ms, void (*callback)()) {
+    return RunNumTimes(-1, ms, callback);
   }
 
-  void Async::RunNumTimes(long num_runs, unsigned long ms, void (*callback)()) {
-    AsyncFunc *new_func = new AsyncFunc(callback, ms, num_runs);
+  FuncId Async::RunNumTimes(long num_runs, unsigned long ms, void (*callback)()) {
+    FuncId id = GetNextId();
+    AsyncFunc *new_func = new AsyncFunc(id, callback, ms, num_runs);
 
     if (current_func_ == nullptr) {
       current_func_ = new_func->prev = new_func->next = new_func;
@@ -58,6 +64,8 @@ namespace Async {
     }
 
     func_count_++;
+
+    return id;
   }
 
   void Async::Handle() {
@@ -82,6 +90,30 @@ namespace Async {
     }
   }
 
+  AsyncFunc *Async::GetFunc(FuncId id) {
+    if (!HasFuncs()) {
+      return nullptr;
+    }
+
+    AsyncFunc *func = current_func_;
+    do {
+      if (func->id == id) {
+        return func;
+      }
+
+      func = func->next;
+    } while (func != current_func_);
+
+    return nullptr;
+  }
+
+  void Async::RemoveFunc(FuncId id) {
+    AsyncFunc *func = GetFunc(id);
+    if (func != nullptr) {
+      RemoveFunc(func);
+    }
+  }
+
   void Async::RemoveAll() {
     while (HasFuncs()) {
       RemoveFunc(current_func_);
@@ -92,6 +124,31 @@ namespace Async {
     // TODO: NOT THIS
     return (float)time_running_ / millis();
 //    return (float)time_running_ / (float)total_time_;
+  }
+
+  void Async::PrintStats(Print &printer) {
+    printer.println("id\t run_time\t % period");
+
+    if (!HasFuncs()) {
+      printer.println("[None]\n");
+      return;
+    }
+
+    AsyncFunc *start_func = current_func_;
+    do {
+      AsyncFunc *func = current_func_;
+
+      printer.print(func->id);
+      printer.print("\t ");
+      printer.print(func->run_time);
+      printer.print("\t ");
+      printer.print(100.f * func->run_time / func->period);
+      printer.println();
+
+      NextFunc();
+    } while (current_func_ != start_func);
+
+    printer.println();
   }
 
   void Async::HandleOne() {
@@ -140,5 +197,14 @@ namespace Async {
 
     delete func;
     func_count_--;
+  }
+
+  FuncId Async::GetNextId() {
+    FuncId id;
+    do {
+      id = next_id_++;
+    } while (GetFunc(id) != nullptr);
+
+    return id;
   }
 }
