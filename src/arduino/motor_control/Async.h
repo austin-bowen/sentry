@@ -9,16 +9,20 @@ namespace Async {
 
   class AsyncFunc {
     public:
+      static const long FOREVER = -1;
+
       AsyncFunc *prev = nullptr;
       AsyncFunc *next = nullptr;
 
       FuncId id;
+      char *name = nullptr;
       void (*callback)();
       unsigned long period;
       long remaining_runs;
 
       unsigned long last_t;
-      unsigned long run_time = 0L;
+      unsigned long run_time = 0;
+      unsigned long misses = 0;
       bool is_enabled = true;
       bool is_running = false;
 

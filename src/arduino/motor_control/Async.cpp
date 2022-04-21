@@ -22,11 +22,13 @@ namespace Async {
   }
 
   void AsyncFunc::Run() {
-    last_t = millis();
+    unsigned long start_t = millis();
 
     is_running = true;
     callback();
     is_running = false;
+
+    unsigned long stop_t = millis();
 
     if (remaining_runs > 0) {
       remaining_runs--;
@@ -34,7 +36,13 @@ namespace Async {
 
     // TODO: If the callback uses async.Delay(), it will be added to the runtime,
     //  which gives a skewed result for how long it actually took to execute.
-    run_time = millis() - last_t;
+    run_time = stop_t - start_t;
+
+    if ((stop_t - last_t) > 2 * period) {
+      misses++;
+    }
+
+    last_t = start_t;
   }
 
   Async::~Async() {
@@ -46,7 +54,7 @@ namespace Async {
   }
 
   FuncId Async::RunForever(unsigned long ms, void (*callback)()) {
-    return RunNumTimes(-1, ms, callback);
+    return RunNumTimes(AsyncFunc::FOREVER, ms, callback);
   }
 
   FuncId Async::RunNumTimes(long num_runs, unsigned long ms, void (*callback)()) {
@@ -127,7 +135,7 @@ namespace Async {
   }
 
   void Async::PrintStats(Print &printer) {
-    printer.println("id\t run_time\t % period");
+    printer.println("id\t rem_runs\t period [ms]\t run_time [ms]\t % period\t misses");
 
     if (!HasFuncs()) {
       printer.println("[None]\n");
@@ -135,18 +143,56 @@ namespace Async {
     }
 
     AsyncFunc *start_func = current_func_;
+    unsigned long run_time_sum = 0;
+    unsigned long min_period = current_func_->period;
     do {
       AsyncFunc *func = current_func_;
 
-      printer.print(func->id);
+      // ID / name
+      if (func->name != nullptr) {
+        printer.print(func->name);
+      } else {
+        printer.print(func->id);
+      }
       printer.print("\t ");
+
+      // Remaining runs
+      if (func->remaining_runs == AsyncFunc::FOREVER) {
+        printer.print("inf");
+      } else {
+        printer.print(func->remaining_runs);
+      }
+      printer.print("\t\t ");
+
+      // Period
+      printer.print(func->period);
+      printer.print("\t\t ");
+
+      // Run time
       printer.print(func->run_time);
-      printer.print("\t ");
+      printer.print("\t\t ");
+
+      // Run time % of period
       printer.print(100.f * func->run_time / func->period);
+      printer.print("\t\t ");
+
+      // Misses
+      printer.print(func->misses);
       printer.println();
+
+      run_time_sum += func->run_time;
+      min_period = min(min_period, func->period);
 
       NextFunc();
     } while (current_func_ != start_func);
+
+    if (run_time_sum > min_period) {
+      printer.print("\nWARNING: Total run time (");
+      printer.print(run_time_sum);
+      printer.print(" ms) > min period (");
+      printer.print(min_period);
+      printer.print(" ms); misses may occur!\n");
+    }
 
     printer.println();
   }

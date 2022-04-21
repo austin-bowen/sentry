@@ -1,6 +1,3 @@
-// https://github.com/Aasim-A/AsyncTimer
-//#include <AsyncTimer.h>
-
 #include "Async.h"
 #include "BatteryMonitor.h"
 #include "Encoder.h"
@@ -39,6 +36,7 @@ BatteryMonitor battery_monitor(
 );
 
 // IMU stuff
+const int IMU_UPDATE_PERIOD = 1000 / 100;
 SentryIMU::SentryIMU imu;
 SentryIMU::IMUSample imu_sample;
 
@@ -96,13 +94,14 @@ void setup() {
 void setup_async_debug() {
   Serial.begin(115200);
 
-  async.RunForever(1000 / 1, []() {
+  Async::FuncId id = async.RunForever(1000 / 1, []() {
     print_async_stats();
 //    print_imu_sample();
 //    print_battery_stats();
 //    print_encoders();
 //    print_motor_controllers();
   });
+  async.GetFunc(id)->name = "debug";
 }
 
 
@@ -160,7 +159,8 @@ void setup_battery_monitor() {
   check_battery_level();
 
   // Check battery level once per second
-  async.RunForever(1000, check_battery_level);
+  Async::FuncId id = async.RunForever(1000, check_battery_level);
+  async.GetFunc(id)->name = "batt";
 }
 
 
@@ -188,9 +188,10 @@ void setup_imu() {
   imu.Calibrate();
 
   // Update the IMU sample periodically
-  async.RunForever(1000 / 100, []() {
+  Async::FuncId id = async.RunForever(IMU_UPDATE_PERIOD, []() {
     imu.Sample(&imu_sample);
   });
+  async.GetFunc(id)->name = "imu";
 }
 
 
@@ -211,12 +212,13 @@ void setup_motors() {
   );
 
   // Setup controllers
-  async.RunForever(MOTOR_CONTROLLER_UPDATE_PERIOD, []() {
+  Async::FuncId id = async.RunForever(MOTOR_CONTROLLER_UPDATE_PERIOD, []() {
     // TODO: CLEAN THIS UP
     left_motor_controller.Update();
     right_motor_controller.Update();
 //    locomotion.Update();
   });
+  async.GetFunc(id)->name = "motors";
 }
 
 
@@ -231,9 +233,10 @@ void handle_right_motor_enc_b_change() { right_motor_encoder.HandleEncBChange();
 
 void setup_avoid_objects() {
   // Run this at 10Hz
-  async.RunForever(1000 / 10, []() {
+  Async::FuncId id = async.RunForever(1000 / 10, []() {
     avoid_objects();
   });
+  async.GetFunc(id)->name = "avoid";
 }
 
 
