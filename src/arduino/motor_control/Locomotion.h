@@ -1,6 +1,9 @@
 #pragma once
 
+#include <PID_v1.h>
+
 #include "MotorController.h"
+#include "SentryIMU.h"
 
 
 class Locomotion {
@@ -42,13 +45,53 @@ class DifferentialDrive : public Locomotion {
       track_width_ = track_width;
     }
 
-  void Stop();
+    void Stop();
+  
+    void Update();
 
-  void Update();
-
-  private:
+  protected:
     MotorController *left_motor_;
     MotorController *right_motor_;
     unsigned long ticks_per_meter_;
     float track_width_;
+};
+
+
+enum class AngularMode { VELOCITY, HEADING };
+
+
+class DifferentialDriveWithImu : public DifferentialDrive {
+  public:
+    DifferentialDriveWithImu(
+      MotorController *left_motor,
+      MotorController *right_motor,
+      unsigned long ticks_per_meter,
+      float track_width,
+      SentryIMU::SentryIMU *imu
+    );
+
+    ~DifferentialDriveWithImu();
+
+    void SetTargetHeading(float heading) {
+      angular_mode_ = AngularMode::HEADING;
+      target_heading_ = heading;
+    }
+
+    void SetTargetAngularVelocity(float angular) {
+      angular_mode_ = AngularMode::VELOCITY;
+      DifferentialDrive::SetTargetAngularVelocity(angular);
+    }
+
+    void Update();
+
+  public:
+    SentryIMU::SentryIMU *imu;
+
+    AngularMode angular_mode_ = AngularMode::VELOCITY;
+    float target_heading_ = 0.0f;
+
+    PID *ang_pid_;
+    double ang_pid_input_;
+    double ang_pid_output_;
+    double ang_pid_setpoint_;
 };

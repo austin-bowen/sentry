@@ -21,9 +21,6 @@
  */
 
 
-// https://github.com/hideakitai/Filters
-#include <Filters.h>
-
 // https://github.com/RCmags/imuFilter
 #include <imuFilter.h>
 
@@ -34,31 +31,78 @@
 namespace SentryIMU {
   constexpr float IMU_FILTER_GAIN = 0.1;
 
-  struct IMUSample {
-    // Time of sample in microseconds
-    unsigned long t_us;
+  struct AngularVelocity {
+    /** Degrees per second. */
+    float degps;
 
-    // Time since previous sample in seconds (will be 0.0 for first call)
-    float dt_s;
+    /** Radians per second. */
+    float radps;
+  };
 
-    // Acceleration in m/s^2
-    float accel_x;
-    float accel_y;
-    float accel_z;
+  struct Gyroscope {
+    AngularVelocity x;
+    AngularVelocity y;
+    AngularVelocity z;
+  };
 
-    // Gyro in radians / s
-    float gyro_x;
-    float gyro_y;
-    float gyro_z;
+  struct LinearAcceleration {
+    /** G's; 1 G is one Earth gravity at sea level. */
+    float gs;
 
-    // Orientation in space in radians
-    float roll;   // Rotation around the X axis; positive values correspond to left side higher than right
-    float pitch;  // Rotation around the Y axis; positive values correspond to front higher than back
-    float yaw;    // Rotation around the Z axis; positive values correspond to counter-clockwise rotation
+    /** Meters per second squared. */
+    float mps2;
+  };
+
+  struct Accelerometer {
+    LinearAcceleration x;
+    LinearAcceleration y;
+    LinearAcceleration z;
+  };
+
+  /** Orientation in space, calculated from gyro and accel. All units in radians. */
+  struct Orientation {
+    /** Rotation around the X axis; positive values correspond to left side higher than right. */
+    float roll;
+
+    /** Rotation around the Y axis; positive values correspond to front higher than back. */
+    float pitch;
+
+    /** Rotation around the Z axis; positive values correspond to counter-clockwise rotation. */
+    float yaw;
+  };
+
+  struct Temperature {
+    /** Celcius. */
+    float c;
+
+    /** Fahrenheit. */
+    float f;
+  };
+
+  struct Offset {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+  };
+
+  /** One sample of data read from the IMU. */
+  struct Sample {
+    /** Time of sample in microseconds. */
+    unsigned long t_us = 0;
+
+    /** Time since previous sample in microseconds (will be 0.0 for first call). */
+    unsigned long dt_us;
+
+    Accelerometer accel;
+    Gyroscope gyro;
+    Orientation orient;
+    Temperature temp;
   };
 
   class SentryIMU {
     public:
+      Sample sample;
+
       SentryIMU();
       ~SentryIMU();
 
@@ -66,34 +110,15 @@ namespace SentryIMU {
 
       void Calibrate();
 
-      float GetAccelX();
-      float GetAccelY();
-      float GetAccelZ();
-
-      float GetGyroX();
-      float GetGyroY();
-      float GetGyroZ();
-
-      void Sample(IMUSample *imu_sample);
+      void ReadSample();
 
     private:
       LSM6DS3 *xiao_imu_;
 
-      unsigned long accel_prev_t_us_[3];
-      Filter::LPF<float> *accel_filters_[3];
-
-      unsigned long gyro_prev_t_us_[3];
-      Filter::HPF<float> *gyro_filters_[3];
-      float gyro_offsets_[3] = {0.0f, 0.0f, 0.0f};
+      Offset gyro_offsets_;
 
       imuFilter<&IMU_FILTER_GAIN> orientation_filter_;
 
-      void ResetFilters(const int axis_index);
-
-      float GetAccelRaw(const int axis_index);
-      float FilterAccel(float raw_accel, const int axis_index);
-
-      float GetGyroRaw(const int axis_index);
       float FilterGyro(float raw_gyro, const int axis_index);
   };
 }

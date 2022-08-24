@@ -1,56 +1,32 @@
-#include <Filters.h>
 #include <imuFilter.h>
 #include <LSM6DS3.h>
-#include <Wire.h>
 
 #include "SentryIMU.h"
 
 namespace SentryIMU {
-  const int X_INDEX = 0;
-  const int Y_INDEX = 1;
-  const int Z_INDEX = 2;
+  float c_to_f(float c) {
+    return (c * 9 / 5) + 32;
+  }
 
-  const float ACCEL_FILTER_GAIN = 10.0f;
-  const float GYRO_FILTER_GAIN = 0.0f;
+  float deg_to_rad(float deg) {
+    static const float rad_per_deg = PI / 180.f;
+    return deg * rad_per_deg;
+  }
 
-  const float GRAVITY_MPS2 = 9.80665f;
-
-  float get_dt_(unsigned long time_array[], int index) {
-    unsigned long t_us = micros();
-    float dt = (t_us - time_array[index]) / 1000000.f;
-    time_array[index] = t_us;
-    return dt;
+  float gs_to_mps2(float gs) {
+    static const float mps2_per_g = 9.80665f;
+    return gs * mps2_per_g;
   }
 
   SentryIMU::SentryIMU() {
     // Setup IMU
     int imu_addr = 0x6A;
     xiao_imu_ = new LSM6DS3(I2C_MODE, imu_addr);
-
-    // Setup accel filters
-    accel_filters_[X_INDEX] = new Filter::LPF<float>(ACCEL_FILTER_GAIN);
-    accel_filters_[Y_INDEX] = new Filter::LPF<float>(ACCEL_FILTER_GAIN);
-    accel_filters_[Z_INDEX] = new Filter::LPF<float>(ACCEL_FILTER_GAIN);
-
-    // Setup gyro filters
-    gyro_filters_[X_INDEX] = new Filter::HPF<float>(GYRO_FILTER_GAIN);
-    gyro_filters_[Y_INDEX] = new Filter::HPF<float>(GYRO_FILTER_GAIN);
-    gyro_filters_[Z_INDEX] = new Filter::HPF<float>(GYRO_FILTER_GAIN);
   }
 
   SentryIMU::~SentryIMU() {
     // Delete IMU
     delete xiao_imu_;
-
-    // Delete accel filters
-    delete accel_filters_[X_INDEX];
-    delete accel_filters_[Y_INDEX];
-    delete accel_filters_[Z_INDEX];
-
-    // Delete gyro filters
-    delete gyro_filters_[X_INDEX];
-    delete gyro_filters_[Y_INDEX];
-    delete gyro_filters_[Z_INDEX];
   }
 
   int SentryIMU::Begin() {
@@ -61,174 +37,100 @@ namespace SentryIMU {
     // 400Hz --> 1 second
     const int samples = 400;
 
-    for (int axis_index = 0; axis_index < 3; axis_index++) {
-      // Throw away one batch of samples; first few samples seem to be large and skew the average
-      int sample;
-      for (sample = 0; sample < samples; sample++) {
-        GetGyroRaw(axis_index);
-      }
+    // Reset gyro offsets to all 0s
+    Offset new_gyro_offsets;
+    gyro_offsets_ = new_gyro_offsets;
 
-      // Calculate offset
-      gyro_offsets_[axis_index] = 0.0f;
-
-      for (sample = 0; sample < samples; sample++) {
-        gyro_offsets_[axis_index] += GetGyroRaw(axis_index);
-      }
-
-      gyro_offsets_[axis_index] /= samples;
-
-      // Now that offset has been calculated, reset the filters for this axis
-      ResetFilters(axis_index);
+    // Throw away one batch of samples; first few samples seem to be large and skew the average
+    int s;
+    for (s = 0; s < samples; s++) {
+      ReadSample();
     }
 
-    orientation_filter_.setup(GetAccelX(), GetAccelY(), GetAccelZ());
-  }
+    // Aggregate the samples
+    for (s = 0; s < samples; s++) {
+      ReadSample();
 
-  void SentryIMU::ResetFilters(const int axis_index) {
-    // Reset accel filters
-    accel_prev_t_us_[axis_index] = micros();
-    accel_filters_[axis_index]->reset(GetAccelRaw(axis_index));
-
-    // Reset gyro filters
-    gyro_prev_t_us_[axis_index] = micros();
-    gyro_filters_[axis_index]->reset(GetGyroRaw(axis_index));
-  }
-
-  float SentryIMU::GetAccelX() {
-    float raw_accel = GetAccelRaw(X_INDEX);
-    return FilterAccel(raw_accel, X_INDEX);
-  }
-
-  float SentryIMU::GetAccelY() {
-    float raw_accel = GetAccelRaw(Y_INDEX);
-    return FilterAccel(raw_accel, Y_INDEX);
-  }
-
-  float SentryIMU::GetAccelZ() {
-    float raw_accel = GetAccelRaw(Z_INDEX);
-    return FilterAccel(raw_accel, Z_INDEX);
-  }
-
-  float SentryIMU::GetAccelRaw(const int axis_index) {
-    switch (axis_index) {
-      case X_INDEX:
-        return -xiao_imu_->readFloatAccelY();
-      case Y_INDEX:
-        return xiao_imu_->readFloatAccelX();
-      case Z_INDEX:
-        return xiao_imu_->readFloatAccelZ();
-      default:
-        return 0.0f;
-    }
-  }
-
-  float SentryIMU::FilterAccel(float raw_accel, const int axis_index) {
-    // Calculate time since last call, dt
-    float dt = get_dt_(accel_prev_t_us_, axis_index);
-
-    // Filter accel
-//    float accel = accel_filters_[axis_index]->get(raw_accel, dt);
-
-    // Convert accel from G's to m/s^2
-//    accel *= GRAVITY_MPS2;
-
-    // TODO: NOT THIS
-    float accel = raw_accel * GRAVITY_MPS2;
-
-    return accel;
-  }
-
-  float SentryIMU::GetGyroX() {
-    float raw_gyro = GetGyroRaw(X_INDEX);
-    return FilterGyro(raw_gyro, X_INDEX);
-  }
-
-  float SentryIMU::GetGyroY() {
-    float raw_gyro = GetGyroRaw(Y_INDEX);
-    return FilterGyro(raw_gyro, Y_INDEX);
-  }
-
-  float SentryIMU::GetGyroZ() {
-    float raw_gyro = GetGyroRaw(Z_INDEX);
-    return FilterGyro(raw_gyro, Z_INDEX);
-  }
-
-  float SentryIMU::GetGyroRaw(const int axis_index) {
-    switch (axis_index) {
-      case X_INDEX:
-        return -xiao_imu_->readFloatGyroY();
-      case Y_INDEX:
-        return xiao_imu_->readFloatGyroX();
-      case Z_INDEX:
-        return xiao_imu_->readFloatGyroZ();
-      default:
-        return 0.0f;
-    }
-  }
-
-  float SentryIMU::FilterGyro(float raw_gyro, const int axis_index) {
-    // For some reason, the gyros randomly output approx. +/- 18 deg/sec; ignore these spikes
-    static float prev_raw_gyros[] = {0.0f, 0.0f, 0.0f};
-    float spike = abs(raw_gyro - prev_raw_gyros[axis_index]);
-    if (abs(spike - 18.0f) <= 1.0) {
-      raw_gyro = prev_raw_gyros[axis_index];
-    } else {
-      prev_raw_gyros[axis_index] = raw_gyro;
+      new_gyro_offsets.x += sample.gyro.x.degps;
+      new_gyro_offsets.y += sample.gyro.y.degps;
+      new_gyro_offsets.z += sample.gyro.z.degps;
     }
 
-    // Subtract offset
-    float gyro = raw_gyro - gyro_offsets_[axis_index];
+    // Average samples to get the offsets
+    new_gyro_offsets.x /= samples;
+    new_gyro_offsets.y /= samples;
+    new_gyro_offsets.z /= samples;
 
-    // Calculate time since last call, dt
-    float dt = get_dt_(gyro_prev_t_us_, axis_index);
+    // Update gyro offsets
+    gyro_offsets_ = new_gyro_offsets;
 
-    // Filter gyro
-//    gyro = gyro_filters_[axis_index]->get(raw_gyro, dt);
-
-    // Convert from deg/s to rad/s
-    gyro *= PI / 180.f;
-
-    return gyro;
+    // Setup the orientation filter
+    ReadSample();
+    orientation_filter_.setup(
+      sample.accel.x.mps2,
+      sample.accel.y.mps2,
+      sample.accel.z.mps2
+    );
   }
 
-  void SentryIMU::Sample(IMUSample *imu_sample) {
-    static bool is_first_run = true;
-    static unsigned long last_t_us;
+  void SentryIMU::ReadSample() {
+    // Read raw sensor data from IMU
+    unsigned long sample_t = micros();
+    uint8_t data[2 * 7];
+    xiao_imu_->readRegisterRegion(data, LSM6DS3_ACC_GYRO_OUT_TEMP_L, sizeof(data));
 
     // Populate times
-    imu_sample->t_us = micros();
-    imu_sample->dt_s = is_first_run
-                       ? 0L
-                       : (imu_sample->t_us - last_t_us) / 1000000.f;
-    is_first_run = false;
-    last_t_us = imu_sample->t_us;
+    bool is_first_run = sample.t_us == 0L;
+    sample.dt_us = is_first_run ? 0L : (sample_t - sample.t_us);
+    sample.t_us = sample_t;
 
-    // Populate accel
-    imu_sample->accel_x = GetAccelX();
-    imu_sample->accel_y = GetAccelY();
-    imu_sample->accel_z = GetAccelZ();
+    // Parse raw sensor values
+    uint16_t raw_temp    = (data[1]  << 8) | data[0];
+    uint16_t raw_gyro_x  = (data[3]  << 8) | data[2];
+    uint16_t raw_gyro_y  = (data[5]  << 8) | data[4];
+    uint16_t raw_gyro_z  = (data[7]  << 8) | data[6];
+    uint16_t raw_accel_x = (data[9]  << 8) | data[8];
+    uint16_t raw_accel_y = (data[11] << 8) | data[10];
+    uint16_t raw_accel_z = (data[13] << 8) | data[12];
 
-    // Populate gyro
-    imu_sample->gyro_x = GetGyroX();
-    imu_sample->gyro_y = GetGyroY();
-    imu_sample->gyro_z = GetGyroZ();
+    // Populate temp
+    sample.temp.c = ((float)raw_temp / xiao_imu_->settings.tempSensitivity) + 25;
+    sample.temp.f = c_to_f(sample.temp.c);
+
+    // Populate gyro values
+    // NOTE: Axes are re-mapped here to align with the robot
+    sample.gyro.x.degps = xiao_imu_->calcGyro(-raw_gyro_y) - gyro_offsets_.x;
+    sample.gyro.y.degps = xiao_imu_->calcGyro(raw_gyro_x)  - gyro_offsets_.y;
+    sample.gyro.z.degps = xiao_imu_->calcGyro(raw_gyro_z)  - gyro_offsets_.z;
+    sample.gyro.x.radps = deg_to_rad(sample.gyro.x.degps);
+    sample.gyro.y.radps = deg_to_rad(sample.gyro.y.degps);
+    sample.gyro.z.radps = deg_to_rad(sample.gyro.z.degps);
+    
+    // Populate accel values
+    // NOTE: Axes are re-mapped here to align with the robot
+    sample.accel.x.gs   = xiao_imu_->calcAccel(-raw_accel_y);
+    sample.accel.y.gs   = xiao_imu_->calcAccel(raw_accel_x);
+    sample.accel.z.gs   = xiao_imu_->calcAccel(raw_accel_z);
+    sample.accel.x.mps2 = gs_to_mps2(sample.accel.x.gs);
+    sample.accel.y.mps2 = gs_to_mps2(sample.accel.y.gs);
+    sample.accel.z.mps2 = gs_to_mps2(sample.accel.z.gs);
 
     // Update orientation filter
     orientation_filter_.update(
-      imu_sample->gyro_x,
-      imu_sample->gyro_y,
-      imu_sample->gyro_z,
-      imu_sample->accel_x,
-      imu_sample->accel_y,
-      imu_sample->accel_z
+      sample.gyro.x.radps,
+      sample.gyro.y.radps,
+      sample.gyro.z.radps,
+      sample.accel.x.mps2,
+      sample.accel.y.mps2,
+      sample.accel.z.mps2
     );
 
     // Populate orientation
     // Note: These follow the right-hand rule, except for the pitch,
     // so that positive pitch values correspond to the front of the
     // robot tilting up.
-    imu_sample->roll = orientation_filter_.roll();
-    imu_sample->pitch = -orientation_filter_.pitch();
-    imu_sample->yaw = orientation_filter_.yaw();
+    sample.orient.roll  =  orientation_filter_.roll();
+    sample.orient.pitch = -orientation_filter_.pitch();
+    sample.orient.yaw   =  orientation_filter_.yaw();
   }
 }

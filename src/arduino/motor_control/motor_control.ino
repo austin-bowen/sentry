@@ -36,9 +36,10 @@ BatteryMonitor battery_monitor(
 );
 
 // IMU stuff
-const int IMU_UPDATE_PERIOD = 1000 / 100;
+// TODO
+//const int IMU_UPDATE_PERIOD = 1000 / 100;
+const int IMU_UPDATE_PERIOD = 10;
 SentryIMU::SentryIMU imu;
-SentryIMU::IMUSample imu_sample;
 
 
 // Motor stuff
@@ -50,7 +51,9 @@ const int TICKS_PER_ROTATION = 900;
 QuadratureEncoder left_motor_encoder(LEFT_MOTOR_ENC_A_PIN, LEFT_MOTOR_ENC_B_PIN, TICKS_PER_ROTATION);
 QuadratureEncoder right_motor_encoder(RIGHT_MOTOR_ENC_A_PIN, RIGHT_MOTOR_ENC_B_PIN, TICKS_PER_ROTATION);
 // - Controllers
-const int MOTOR_CONTROLLER_UPDATE_PERIOD = 1000 / 10;
+// TODO
+//const int MOTOR_CONTROLLER_UPDATE_PERIOD = 1000 / 10;
+const int MOTOR_CONTROLLER_UPDATE_PERIOD = 101;
 float k_p = 0.0002, k_i = 0.004, k_d = 0.0;
 MotorController left_motor_controller(
   &left_motor_driver,
@@ -68,13 +71,14 @@ MotorController right_motor_controller(
 );
 
 // Locomotion
-DifferentialDrive locomotion(
+DifferentialDriveWithImu locomotion(
   &left_motor_controller,
   &right_motor_controller,
   // Ticks per meter
   6200,
   // Track width [m]
-  0.22
+  0.22,
+  &imu
 );
 
 
@@ -85,21 +89,26 @@ void setup() {
   setup_imu();
   setup_motors();
 
-  setup_avoid_objects();
+//  setup_avoid_objects();
 //  setup_track_heading();
 //  setup_track_motor_position();
+//  setup_test_locomotion();
+//  setup_drive_in_square();
 }
 
 
 void setup_async_debug() {
   Serial.begin(115200);
 
-  Async::FuncId id = async.RunForever(1000 / 1, []() {
+//  Async::FuncId id = async.RunForever(1000 / 1, []() {
+  Async::FuncId id = async.RunForever(1000, []() {
     print_async_stats();
 //    print_imu_sample();
 //    print_battery_stats();
 //    print_encoders();
 //    print_motor_controllers();
+//    print_locomotion();
+//    print_falling();
   });
   async.GetFunc(id)->name = "debug";
 }
@@ -114,12 +123,20 @@ void print_async_stats() {
 
 
 void print_imu_sample() {
+//  Serial.println("gyro_x,gyro_y,gyro_z");
+//  Serial.print(imu.sample.gyro.x.radps);
+//  Serial.print(',');
+//  Serial.print(imu.sample.gyro.y.radps);
+//  Serial.print(',');
+//  Serial.print(imu.sample.gyro.z.radps);
+
   Serial.println("roll,pitch,yaw");
-  Serial.print(imu_sample.roll);
+  Serial.print(imu.sample.orient.roll);
   Serial.print(',');
-  Serial.print(imu_sample.pitch);
+  Serial.print(imu.sample.orient.pitch);
   Serial.print(',');
-  Serial.print(imu_sample.yaw);
+  Serial.print(imu.sample.orient.yaw);
+
   Serial.println();
 }
 
@@ -155,10 +172,39 @@ void print_motor_controllers() {
 }
 
 
+void print_locomotion() {
+  Serial.println("lin_vel_target,lin_vel_actual,ang_vel_target,ang_vel_actual");
+  Serial.print(locomotion.GetTargetLinearVelocity());
+  Serial.print(',');
+  Serial.print((left_motor_controller.GetActualVelocity() + right_motor_controller.GetActualVelocity()) / 2.0 / 6200.);
+  Serial.print(',');
+  Serial.print(locomotion.GetTargetAngularVelocity());
+  Serial.print(',');
+  Serial.print(imu.sample.gyro.z.radps);
+  Serial.println();
+}
+
+
+void print_falling() {
+  // TODO
+//  bool falling = imu.sample.accel_net_squared < pow(5, 2);
+  bool falling = false;
+
+  Serial.println("net_accel,falling");
+//  Serial.print(sqrt(imu.sample.accel_net_squared));
+  Serial.print("TODO");
+  Serial.print(',');
+  Serial.print(falling ? 5 : 0);
+  Serial.println();
+}
+
+
 void setup_battery_monitor() {
   check_battery_level();
 
   // Check battery level once per second
+  // TODO
+//  Async::FuncId id = async.RunForever(1000, check_battery_level);
   Async::FuncId id = async.RunForever(1000, check_battery_level);
   async.GetFunc(id)->name = "batt";
 }
@@ -189,7 +235,7 @@ void setup_imu() {
 
   // Update the IMU sample periodically
   Async::FuncId id = async.RunForever(IMU_UPDATE_PERIOD, []() {
-    imu.Sample(&imu_sample);
+    imu.ReadSample();
   });
   async.GetFunc(id)->name = "imu";
 }
@@ -214,8 +260,8 @@ void setup_motors() {
   // Setup controllers
   Async::FuncId id = async.RunForever(MOTOR_CONTROLLER_UPDATE_PERIOD, []() {
     // TODO: CLEAN THIS UP
-    left_motor_controller.Update();
-    right_motor_controller.Update();
+//    left_motor_controller.Update();
+//    right_motor_controller.Update();
 //    locomotion.Update();
   });
   async.GetFunc(id)->name = "motors";
@@ -241,42 +287,48 @@ void setup_avoid_objects() {
 
 
 void avoid_objects() {
-  static float speed = 1000;
+  static float speed = 0.2;
 
   if (detected_bump()) {
     avoid(speed);
   } else {
-    drive_forward(speed);
+    drive_around(speed);
   }
 }
 
 
 bool detected_bump() {
-  if (imu_sample.accel_x <= -3.0f) {
+  if (imu.sample.accel.x.mps2 <= -3.0f) {
     return true;
   }
 
   static const float max_angle = PI / 8.f;
-  return imu_sample.pitch >= max_angle || abs(imu_sample.roll) >= max_angle;
+  return imu.sample.orient.pitch >= max_angle || abs(imu.sample.orient.roll) >= max_angle;
 }
 
 
 void avoid(const float speed) {
-  stop_driving();
+  locomotion.SetTargetVelocities(0, 0);
   async.Delay(250);
 
-  drive_backward(speed);
+  locomotion.SetTargetVelocities(-speed, 0);
   async.Delay(2000);
 
-  stop_driving();
+  locomotion.SetTargetVelocities(0, 0);
   async.Delay(250);
 
   const bool left = random(2);
-  left ? turn_left(speed) : turn_right(speed);
+  locomotion.SetTargetVelocities(0, left ? 1 : -1);
   async.Delay(random(1000, 3000));
 
-  stop_driving();
+  locomotion.SetTargetVelocities(0, 0);
   async.Delay(250);
+}
+
+
+void drive_around(const float speed) {
+  float angular_velocity = 0.25 * sin(2. * PI * (millis() / 1000.) / 10);
+  locomotion.SetTargetVelocities(speed, angular_velocity);
 }
 
 
@@ -286,7 +338,7 @@ void setup_track_heading() {
   async.RunForever(1000 / 10, []() {
     target_yaw = PI * sin(2 * PI * (millis() / 1000.f) / 30);
 
-    float error = (imu_sample.yaw - target_yaw) / PI;
+    float error = (imu.sample.orient.yaw - target_yaw) / PI;
 
     if (abs(error) < 0.05) {
       error = 0;
@@ -312,6 +364,35 @@ void setup_track_motor_position() {
 
     drive(speed, 0);
 //    drive(0, speed);
+  });
+}
+
+
+void setup_test_locomotion() {
+  async.RunForever(1000 / 10, []() {
+    float angular = 0.1 * sin(2. * PI * millis() / 1000. / 10.) * 2. * PI;
+
+//    locomotion.SetTargetVelocities(0.05, 0.05 * 2 / 0.22);
+    locomotion.SetTargetVelocities(0.1, angular);
+  });
+}
+
+
+void setup_drive_in_square() {
+  async.RunForever(1, []() {
+    locomotion.SetTargetLinearVelocity(0.2);
+
+    locomotion.SetTargetHeading(0.0);
+    async.Delay(8000);
+
+    locomotion.SetTargetHeading(- PI / 2);
+    async.Delay(8000);
+
+    locomotion.SetTargetHeading(PI);
+    async.Delay(8000);
+
+    locomotion.SetTargetHeading(PI / 2);
+    async.Delay(8000);
   });
 }
 
