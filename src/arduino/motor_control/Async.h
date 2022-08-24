@@ -22,6 +22,7 @@ namespace Async {
 
       unsigned long last_t;
       unsigned long run_time = 0;
+      float jitter = 0.0f;
       unsigned long misses = 0;
       bool is_enabled = true;
       bool is_running = false;
@@ -65,7 +66,7 @@ namespace Async {
        * Meant to be used by a (possibly long-running) callback function
        * to give other callbacks a chance to run.
        */
-      void Yield() { Handle(); }
+      void Yield();
 
       AsyncFunc *GetFunc(FuncId id);
 

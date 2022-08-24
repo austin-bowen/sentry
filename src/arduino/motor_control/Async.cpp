@@ -38,11 +38,19 @@ namespace Async {
     //  which gives a skewed result for how long it actually took to execute.
     run_time = stop_t - start_t;
 
+    // Calculate jitter
+    if (last_t) {
+      unsigned long jitter = (start_t - last_t) - period;
+      float a = 0.05f;
+      this->jitter = a * jitter + (1 - a) * this->jitter;
+    }
+
     if ((stop_t - last_t) > 2 * period) {
       misses++;
     }
 
-    last_t = start_t;
+//    last_t = start_t;
+    last_t = (start_t / period) * period;
   }
 
   Async::~Async() {
@@ -98,6 +106,10 @@ namespace Async {
     }
   }
 
+  void Async::Yield() {
+    Handle();
+  }
+
   AsyncFunc *Async::GetFunc(FuncId id) {
     if (!HasFuncs()) {
       return nullptr;
@@ -135,12 +147,18 @@ namespace Async {
   }
 
   void Async::PrintStats(Print &printer) {
-    printer.println("id\t rem_runs\t period [ms]\t run_time [ms]\t % period\t misses");
+    printer.print("t [ms]: ");
+    printer.print(millis());
+    printer.println();
+
+    printer.println("id\t rem_runs\t period [ms]\t run_time [ms|%]\t jitter [ms|%]\t misses");
 
     if (!HasFuncs()) {
       printer.println("[None]\n");
       return;
     }
+
+    Yield();
 
     AsyncFunc *start_func = current_func_;
     unsigned long run_time_sum = 0;
@@ -170,11 +188,15 @@ namespace Async {
 
       // Run time
       printer.print(func->run_time);
-      printer.print("\t\t ");
-
-      // Run time % of period
+      printer.print('|');
       printer.print(100.f * func->run_time / func->period);
-      printer.print("\t\t ");
+      printer.print(" \t\t ");
+
+      // Jitter
+      printer.print(func->jitter);
+      printer.print('|');
+      printer.print(100.f * func->jitter / func->period);
+      printer.print("\t ");
 
       // Misses
       printer.print(func->misses);
@@ -195,6 +217,7 @@ namespace Async {
     }
 
     printer.println();
+    Yield();
   }
 
   void Async::HandleOne() {
