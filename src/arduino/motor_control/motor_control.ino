@@ -36,9 +36,7 @@ BatteryMonitor battery_monitor(
 );
 
 // IMU stuff
-// TODO
-//const int IMU_UPDATE_PERIOD = 1000 / 100;
-const int IMU_UPDATE_PERIOD = 10;
+const int IMU_UPDATE_PERIOD = 1000 / 100;
 SentryIMU::SentryIMU imu;
 
 
@@ -51,9 +49,7 @@ const int TICKS_PER_ROTATION = 900;
 QuadratureEncoder left_motor_encoder(LEFT_MOTOR_ENC_A_PIN, LEFT_MOTOR_ENC_B_PIN, TICKS_PER_ROTATION);
 QuadratureEncoder right_motor_encoder(RIGHT_MOTOR_ENC_A_PIN, RIGHT_MOTOR_ENC_B_PIN, TICKS_PER_ROTATION);
 // - Controllers
-// TODO
-//const int MOTOR_CONTROLLER_UPDATE_PERIOD = 1000 / 10;
-const int MOTOR_CONTROLLER_UPDATE_PERIOD = 101;
+const int MOTOR_CONTROLLER_UPDATE_PERIOD = 1000 / 10;
 float k_p = 0.0002, k_i = 0.004, k_d = 0.0;
 MotorController left_motor_controller(
   &left_motor_driver,
@@ -203,8 +199,6 @@ void setup_battery_monitor() {
   check_battery_level();
 
   // Check battery level once per second
-  // TODO
-//  Async::FuncId id = async.RunForever(1000, check_battery_level);
   Async::FuncId id = async.RunForever(1000, check_battery_level);
   async.GetFunc(id)->name = "batt";
 }
