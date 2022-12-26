@@ -44,13 +44,6 @@ class CameraCapturer(Thread):
         return self.get_next()
 
     def run(self) -> None:
-        message_prefix = (
-            b'--frame\r\n'
-            b'Content-Type: image/jpeg\r\n'
-            b'\r\n'
-        )
-        message_suffix = b'\r\n'
-
         with io.BytesIO() as buffer:
             t0 = time.monotonic()
 
