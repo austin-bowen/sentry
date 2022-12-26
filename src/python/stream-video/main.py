@@ -1,4 +1,3 @@
-import cv2
 import io
 import time
 
