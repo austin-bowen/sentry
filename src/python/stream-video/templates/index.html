@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hello</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+
+      img.video_feed {
+        display: block;
+        margin: 0 auto;
+        width: calc(min(1024px, 100%));
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Testing</h1>
+    <img class="video_feed" src="{{ url_for('video_feed') }}">
+  </body>
+</html>
