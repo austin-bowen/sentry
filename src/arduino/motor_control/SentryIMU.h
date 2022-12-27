@@ -29,8 +29,6 @@
 
 
 namespace SentryIMU {
-  constexpr float IMU_FILTER_GAIN = 0.1;
-
   struct AngularVelocity {
     /** Degrees per second. */
     float degps;
@@ -117,7 +115,7 @@ namespace SentryIMU {
 
       Offset gyro_offsets_;
 
-      imuFilter<&IMU_FILTER_GAIN> orientation_filter_;
+      imuFilter orientation_filter_;
 
       float FilterGyro(float raw_gyro, const int axis_index);
   };

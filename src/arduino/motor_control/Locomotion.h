@@ -57,7 +57,7 @@ class DifferentialDrive : public Locomotion {
 };
 
 
-enum class AngularMode { VELOCITY, HEADING };
+enum class AngularMode { NONE, VELOCITY, HEADING };
 
 
 class DifferentialDriveWithImu : public DifferentialDrive {
@@ -82,12 +82,16 @@ class DifferentialDriveWithImu : public DifferentialDrive {
       DifferentialDrive::SetTargetAngularVelocity(angular);
     }
 
+    void DisableAngularControl() {
+      angular_mode_ = AngularMode::NONE;
+    }
+
     void Update();
 
   public:
     SentryIMU::SentryIMU *imu;
 
-    AngularMode angular_mode_ = AngularMode::VELOCITY;
+    AngularMode angular_mode_ = AngularMode::NONE;
     float target_heading_ = 0.0f;
 
     PID *ang_pid_;

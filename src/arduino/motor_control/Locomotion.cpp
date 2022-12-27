@@ -48,6 +48,9 @@ DifferentialDriveWithImu::DifferentialDriveWithImu(
     0.5,
     6.0,
     0.0,
+    // 1.5,
+    // 0.0,
+    // 0.0,
     DIRECT
   );
 
@@ -69,12 +72,15 @@ void DifferentialDriveWithImu::Update() {
     ang_pid_->SetMode(AUTOMATIC);
     ang_pid_input_ = imu->sample.gyro.z.radps;
     ang_pid_setpoint_ = target_angular_;
+    ang_pid_->Compute();
   } else if (angular_mode_ == AngularMode::HEADING) {
     ang_pid_->SetMode(MANUAL);
     ang_pid_output_ = 10. * trunc_angle(target_heading_ - imu->sample.orient.yaw);
+  } else {
+    ang_pid_->SetMode(MANUAL);
+    ang_pid_output_ = 0;
   }
 
-  ang_pid_->Compute();
   float angular = ang_pid_output_ * track_width_ / 2.0f;
 
   float left_target_velocity = target_linear_ - angular;

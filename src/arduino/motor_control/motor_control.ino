@@ -1,3 +1,6 @@
+#include <Arduino.h>
+#include <SerialPackets.h>
+
 #include "Async.h"
 #include "BatteryMonitor.h"
 #include "Encoder.h"
@@ -78,33 +81,32 @@ DifferentialDriveWithImu locomotion(
 );
 
 
+// Serial packets
+const uint8_t serial_buffer_size = 64 - 1;
+const uint8_t read_buffer_len = serial_buffer_size - SerialPackets::kPacketHeaderLen;
+uint8_t read_buffer[read_buffer_len];
+SerialPackets serial_packets;
+
+
 void setup() {
-  setup_async_debug();
+  // setup_async_debug();
 
   setup_battery_monitor();
   setup_imu();
   setup_motors();
-
-//  setup_avoid_objects();
-//  setup_track_heading();
-//  setup_track_motor_position();
-//  setup_test_locomotion();
-//  setup_drive_in_square();
 }
 
 
 void setup_async_debug() {
   Serial.begin(115200);
 
-//  Async::FuncId id = async.RunForever(1000 / 1, []() {
-  Async::FuncId id = async.RunForever(1000, []() {
-    print_async_stats();
-//    print_imu_sample();
-//    print_battery_stats();
-//    print_encoders();
-//    print_motor_controllers();
-//    print_locomotion();
-//    print_falling();
+  Async::FuncId id = async.RunForever(100, []() {
+    // print_async_stats();
+    print_imu_sample();
+    // print_battery_stats();
+    // print_encoders();
+    // print_motor_controllers();
+    // print_locomotion();
   });
   async.GetFunc(id)->name = "debug";
 }
@@ -119,14 +121,12 @@ void print_async_stats() {
 
 
 void print_imu_sample() {
-//  Serial.println("gyro_x,gyro_y,gyro_z");
 //  Serial.print(imu.sample.gyro.x.radps);
 //  Serial.print(',');
 //  Serial.print(imu.sample.gyro.y.radps);
 //  Serial.print(',');
 //  Serial.print(imu.sample.gyro.z.radps);
 
-  Serial.println("roll,pitch,yaw");
   Serial.print(imu.sample.orient.roll);
   Serial.print(',');
   Serial.print(imu.sample.orient.pitch);
@@ -177,20 +177,6 @@ void print_locomotion() {
   Serial.print(locomotion.GetTargetAngularVelocity());
   Serial.print(',');
   Serial.print(imu.sample.gyro.z.radps);
-  Serial.println();
-}
-
-
-void print_falling() {
-  // TODO
-//  bool falling = imu.sample.accel_net_squared < pow(5, 2);
-  bool falling = false;
-
-  Serial.println("net_accel,falling");
-//  Serial.print(sqrt(imu.sample.accel_net_squared));
-  Serial.print("TODO");
-  Serial.print(',');
-  Serial.print(falling ? 5 : 0);
   Serial.println();
 }
 
@@ -256,7 +242,7 @@ void setup_motors() {
     // TODO: CLEAN THIS UP
 //    left_motor_controller.Update();
 //    right_motor_controller.Update();
-//    locomotion.Update();
+    locomotion.Update();
   });
   async.GetFunc(id)->name = "motors";
 }
@@ -271,157 +257,46 @@ void handle_right_motor_enc_a_change() { right_motor_encoder.HandleEncAChange();
 void handle_right_motor_enc_b_change() { right_motor_encoder.HandleEncBChange(); }
 
 
-void setup_avoid_objects() {
-  // Run this at 10Hz
-  Async::FuncId id = async.RunForever(1000 / 10, []() {
-    avoid_objects();
-  });
-  async.GetFunc(id)->name = "avoid";
-}
-
-
-void avoid_objects() {
-  static float speed = 0.2;
-
-  if (detected_bump()) {
-    avoid(speed);
-  } else {
-    drive_around(speed);
-  }
-}
-
-
-bool detected_bump() {
-  if (imu.sample.accel.x.mps2 <= -3.0f) {
-    return true;
-  }
-
-  static const float max_angle = PI / 8.f;
-  return imu.sample.orient.pitch >= max_angle || abs(imu.sample.orient.roll) >= max_angle;
-}
-
-
-void avoid(const float speed) {
-  locomotion.SetTargetVelocities(0, 0);
-  async.Delay(250);
-
-  locomotion.SetTargetVelocities(-speed, 0);
-  async.Delay(2000);
-
-  locomotion.SetTargetVelocities(0, 0);
-  async.Delay(250);
-
-  const bool left = random(2);
-  locomotion.SetTargetVelocities(0, left ? 1 : -1);
-  async.Delay(random(1000, 3000));
-
-  locomotion.SetTargetVelocities(0, 0);
-  async.Delay(250);
-}
-
-
-void drive_around(const float speed) {
-  float angular_velocity = 0.25 * sin(2. * PI * (millis() / 1000.) / 10);
-  locomotion.SetTargetVelocities(speed, angular_velocity);
-}
-
-
-void setup_track_heading() {
-  static float target_yaw = 0.0f;
-
-  async.RunForever(1000 / 10, []() {
-    target_yaw = PI * sin(2 * PI * (millis() / 1000.f) / 30);
-
-    float error = (imu.sample.orient.yaw - target_yaw) / PI;
-
-    if (abs(error) < 0.05) {
-      error = 0;
-    }
-
-    float speed = 5.0f * error;
-//    speed = min(max(-0.5, speed), 0.5);
-
-    drive(speed, -speed);
-  });
-}
-
-
-void setup_track_motor_position() {
-  static long target_pos = TICKS_PER_ROTATION * 10;
-
-  async.RunForever(1000 / 10, []() {
-    long error = target_pos - left_motor_encoder.ticks;
-//    long error = target_pos - right_motor_position;
-
-    float speed = 0.01f * error;
-    speed = min(max(-0.5, speed), 0.5);
-
-    drive(speed, 0);
-//    drive(0, speed);
-  });
-}
-
-
-void setup_test_locomotion() {
-  async.RunForever(1000 / 10, []() {
-    float angular = 0.1 * sin(2. * PI * millis() / 1000. / 10.) * 2. * PI;
-
-//    locomotion.SetTargetVelocities(0.05, 0.05 * 2 / 0.22);
-    locomotion.SetTargetVelocities(0.1, angular);
-  });
-}
-
-
-void setup_drive_in_square() {
-  async.RunForever(1, []() {
-    locomotion.SetTargetLinearVelocity(0.2);
-
-    locomotion.SetTargetHeading(0.0);
-    async.Delay(8000);
-
-    locomotion.SetTargetHeading(- PI / 2);
-    async.Delay(8000);
-
-    locomotion.SetTargetHeading(PI);
-    async.Delay(8000);
-
-    locomotion.SetTargetHeading(PI / 2);
-    async.Delay(8000);
-  });
-}
-
-
-void drive_forward(const float speed) {
-  drive(speed, speed);
-}
-
-
-void drive_backward(const float speed) {
-  drive(-speed, -speed);
-}
-
-
-void turn_left(const float speed) {
-  drive(-speed, speed);
-}
-
-
-void turn_right(const float speed) {
-  drive(speed, -speed);
-}
-
-
-void stop_driving() {
-  drive(0.0, 0.0);
-}
-
-
 void drive(float left, float right) {
   left_motor_controller.SetTargetVelocity(left);
   right_motor_controller.SetTargetVelocity(right);
 }
 
 
+void handle_commands() {
+  static const byte COMMAND_HEARTBEAT = 0x00;
+  static const byte COMMAND_SET_BODY_VELOCITY = 0x01;
+  static const byte ACK = 0x00;
+  static const byte NCK = 0x01;
+
+  int packet_len = serial_packets.ReadNonblocking(read_buffer, read_buffer_len);
+  if (packet_len < 1) {
+    return;
+  }
+
+  byte response[1] = {ACK};
+  int response_len = 1;
+
+  byte command = read_buffer[0];
+  if (command == COMMAND_HEARTBEAT) {
+    // TODO
+  } else if (command == COMMAND_SET_BODY_VELOCITY) {
+    short linear_cm        = ((short)read_buffer[1] << 8) | (short)read_buffer[2];
+    short angular_centirad = ((short)read_buffer[3] << 8) | (short)read_buffer[4];
+    float linear = linear_cm / 100.f;
+    float angular = angular_centirad / 100.f;
+    locomotion.SetTargetLinearVelocity(linear);
+    // locomotion.SetTargetAngularVelocity(angular);
+    locomotion.SetTargetHeading(angular);
+  } else {
+    response[0] = NCK;
+  }
+
+  serial_packets.Write(response, response_len);
+}
+
+
 void loop() {
+  handle_commands();
   async.Handle();
 }

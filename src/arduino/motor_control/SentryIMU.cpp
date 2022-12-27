@@ -122,7 +122,9 @@ namespace SentryIMU {
       sample.gyro.z.radps,
       sample.accel.x.mps2,
       sample.accel.y.mps2,
-      sample.accel.z.mps2
+      sample.accel.z.mps2,
+      // Gain (default = 0.5)
+      0.5
     );
 
     // Populate orientation
