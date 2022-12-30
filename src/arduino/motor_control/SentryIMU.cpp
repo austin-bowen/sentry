@@ -33,23 +33,22 @@ namespace SentryIMU {
     return xiao_imu_->begin();
   }
 
-  void SentryIMU::Calibrate() {
-    // 400Hz --> 1 second
-    const int samples = 400;
-
+  void SentryIMU::Calibrate(unsigned long time_ms) {
     // Reset gyro offsets to all 0s
     Offset new_gyro_offsets;
     gyro_offsets_ = new_gyro_offsets;
 
     // Throw away one batch of samples; first few samples seem to be large and skew the average
-    int s;
-    for (s = 0; s < samples; s++) {
+    for (int s = 0; s < 100; s++) {
       ReadSample();
     }
 
     // Aggregate the samples
-    for (s = 0; s < samples; s++) {
+    unsigned long start_time = millis();
+    unsigned long samples = 0;
+    while ((millis() - start_time) < time_ms) {
       ReadSample();
+      samples++;
 
       new_gyro_offsets.x += sample.gyro.x.degps;
       new_gyro_offsets.y += sample.gyro.y.degps;
@@ -57,9 +56,11 @@ namespace SentryIMU {
     }
 
     // Average samples to get the offsets
-    new_gyro_offsets.x /= samples;
-    new_gyro_offsets.y /= samples;
-    new_gyro_offsets.z /= samples;
+    if (samples > 0) {
+      new_gyro_offsets.x /= samples;
+      new_gyro_offsets.y /= samples;
+      new_gyro_offsets.z /= samples;
+    }
 
     // Update gyro offsets
     gyro_offsets_ = new_gyro_offsets;
@@ -86,12 +87,12 @@ namespace SentryIMU {
 
     // Parse raw sensor values
     uint16_t raw_temp    = (data[1]  << 8) | data[0];
-    uint16_t raw_gyro_x  = (data[3]  << 8) | data[2];
-    uint16_t raw_gyro_y  = (data[5]  << 8) | data[4];
-    uint16_t raw_gyro_z  = (data[7]  << 8) | data[6];
-    uint16_t raw_accel_x = (data[9]  << 8) | data[8];
-    uint16_t raw_accel_y = (data[11] << 8) | data[10];
-    uint16_t raw_accel_z = (data[13] << 8) | data[12];
+    int16_t  raw_gyro_x  = (data[3]  << 8) | data[2];
+    int16_t  raw_gyro_y  = (data[5]  << 8) | data[4];
+    int16_t  raw_gyro_z  = (data[7]  << 8) | data[6];
+    int16_t  raw_accel_x = (data[9]  << 8) | data[8];
+    int16_t  raw_accel_y = (data[11] << 8) | data[10];
+    int16_t  raw_accel_z = (data[13] << 8) | data[12];
 
     // Populate temp
     sample.temp.c = ((float)raw_temp / xiao_imu_->settings.tempSensitivity) + 25;
@@ -100,12 +101,15 @@ namespace SentryIMU {
     // Populate gyro values
     // NOTE: Axes are re-mapped here to align with the robot
     sample.gyro.x.degps = xiao_imu_->calcGyro(-raw_gyro_y) - gyro_offsets_.x;
-    sample.gyro.y.degps = xiao_imu_->calcGyro(raw_gyro_x)  - gyro_offsets_.y;
-    sample.gyro.z.degps = xiao_imu_->calcGyro(raw_gyro_z)  - gyro_offsets_.z;
+    sample.gyro.y.degps = xiao_imu_->calcGyro(raw_gyro_x) - gyro_offsets_.y;
     sample.gyro.x.radps = deg_to_rad(sample.gyro.x.degps);
     sample.gyro.y.radps = deg_to_rad(sample.gyro.y.degps);
-    sample.gyro.z.radps = deg_to_rad(sample.gyro.z.degps);
-    
+    // Z axis happens to have random spikes where the value will be +/-255 +/-2; ignore those spikes
+    if (abs(abs(raw_gyro_z) - 255) > 3) {
+      sample.gyro.z.degps = xiao_imu_->calcGyro(raw_gyro_z) - gyro_offsets_.z;
+      sample.gyro.z.radps = deg_to_rad(sample.gyro.z.degps);
+    }
+
     // Populate accel values
     // NOTE: Axes are re-mapped here to align with the robot
     sample.accel.x.gs   = xiao_imu_->calcAccel(-raw_accel_y);

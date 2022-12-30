@@ -106,7 +106,7 @@ namespace SentryIMU {
 
       int Begin();
 
-      void Calibrate();
+      void Calibrate(unsigned long time_ms);
 
       void ReadSample();
 
