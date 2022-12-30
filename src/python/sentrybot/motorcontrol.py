@@ -179,25 +179,24 @@ class MotorControlError(Exception):
 
 
 def main():
-    from math import pi
-
     motors = DriveMotorController.connect('/dev/ttyACM0')
 
     speed = 0.2
+    motors.set_target_heading(deg=0)
 
     while True:
         motors.set_linear_velocity(speed)
         time.sleep(16)
 
         motors.set_linear_velocity(0.)
-        motors.change_target_heading(-pi / 2)
+        motors.change_target_heading(deg=-90)
         time.sleep(3)
 
         motors.set_linear_velocity(speed)
         time.sleep(12)
 
         motors.set_linear_velocity(0.)
-        motors.change_target_heading(-pi / 2)
+        motors.change_target_heading(deg=-90)
         time.sleep(3)
 
 
