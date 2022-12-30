@@ -121,18 +121,18 @@ void print_async_stats() {
 
 
 void print_imu_sample() {
-//  Serial.print(imu.sample.gyro.x.radps);
-//  Serial.print(',');
-//  Serial.print(imu.sample.gyro.y.radps);
-//  Serial.print(',');
-//  Serial.print(imu.sample.gyro.z.radps);
+  // Serial.print(imu.sample.gyro.x.radps);
+  // Serial.print(',');
+  // Serial.print(imu.sample.gyro.y.radps);
+  // Serial.print(',');
+  // Serial.print(imu.sample.gyro.z.radps);
+  // Serial.println();
 
   Serial.print(imu.sample.orient.roll);
   Serial.print(',');
   Serial.print(imu.sample.orient.pitch);
   Serial.print(',');
   Serial.print(imu.sample.orient.yaw);
-
   Serial.println();
 }
 
@@ -211,7 +211,8 @@ void warn_low_battery() {
 
 void setup_imu() {
   imu.Begin();
-  imu.Calibrate();
+  delay(1000);
+  imu.Calibrate(2000);
 
   // Update the IMU sample periodically
   Async::FuncId id = async.RunForever(IMU_UPDATE_PERIOD, []() {
@@ -239,9 +240,6 @@ void setup_motors() {
 
   // Setup controllers
   Async::FuncId id = async.RunForever(MOTOR_CONTROLLER_UPDATE_PERIOD, []() {
-    // TODO: CLEAN THIS UP
-//    left_motor_controller.Update();
-//    right_motor_controller.Update();
     locomotion.Update();
   });
   async.GetFunc(id)->name = "motors";
@@ -257,15 +255,12 @@ void handle_right_motor_enc_a_change() { right_motor_encoder.HandleEncAChange();
 void handle_right_motor_enc_b_change() { right_motor_encoder.HandleEncBChange(); }
 
 
-void drive(float left, float right) {
-  left_motor_controller.SetTargetVelocity(left);
-  right_motor_controller.SetTargetVelocity(right);
-}
-
-
 void handle_commands() {
   static const byte COMMAND_HEARTBEAT = 0x00;
-  static const byte COMMAND_SET_BODY_VELOCITY = 0x01;
+  static const byte COMMAND_GET_STATUS = 0x01;
+  static const byte COMMAND_SET_LINEAR_VELOCITY = 0x02;
+  static const byte COMMAND_SET_ANGULAR_VELOCITY = 0x03;
+  static const byte COMMAND_SET_TARGET_HEADING = 0x04;
   static const byte ACK = 0x00;
   static const byte NCK = 0x01;
 
@@ -280,14 +275,20 @@ void handle_commands() {
   byte command = read_buffer[0];
   if (command == COMMAND_HEARTBEAT) {
     // TODO
-  } else if (command == COMMAND_SET_BODY_VELOCITY) {
+  } else if (command == COMMAND_GET_STATUS) {
+    // TODO
+  } else if (command == COMMAND_SET_LINEAR_VELOCITY) {
     short linear_cm        = ((short)read_buffer[1] << 8) | (short)read_buffer[2];
-    short angular_centirad = ((short)read_buffer[3] << 8) | (short)read_buffer[4];
     float linear = linear_cm / 100.f;
-    float angular = angular_centirad / 100.f;
     locomotion.SetTargetLinearVelocity(linear);
-    // locomotion.SetTargetAngularVelocity(angular);
-    locomotion.SetTargetHeading(angular);
+  } else if (command == COMMAND_SET_ANGULAR_VELOCITY) {
+    short angular_centirad = ((short)read_buffer[1] << 8) | (short)read_buffer[2];
+    float angular = angular_centirad / 100.f;
+    locomotion.SetTargetAngularVelocity(angular);
+  } else if (command == COMMAND_SET_TARGET_HEADING) {
+    short heading_centirad = ((short)read_buffer[1] << 8) | (short)read_buffer[2];
+    float heading = heading_centirad / 100.f;
+    locomotion.SetTargetHeading(heading);
   } else {
     response[0] = NCK;
   }
