@@ -14,21 +14,29 @@ double trunc_angle(double angle) {
 
 
 void DifferentialDrive::Stop() {
+  enabled_ = false;
   left_motor_->Stop();
   right_motor_->Stop();
 }
 
 
 void DifferentialDrive::Update() {
-  float angular = target_angular_ * track_width_ / 2.0f;
-  float left_target_velocity = target_linear_ - angular;
-  float right_target_velocity = target_linear_ + angular;
+  if (enabled_) {
+    float angular = target_angular_ * track_width_ / 2.0f;
+    float left_target_velocity = target_linear_ - angular;
+    float right_target_velocity = target_linear_ + angular;
 
-  left_motor_->SetTargetVelocity(left_target_velocity * ticks_per_meter_);
-  right_motor_->SetTargetVelocity(right_target_velocity * ticks_per_meter_);
+    left_motor_->SetTargetVelocity(left_target_velocity * ticks_per_meter_);
+    right_motor_->SetTargetVelocity(right_target_velocity * ticks_per_meter_);
+  }
 
   left_motor_->Update();
   right_motor_->Update();
+}
+
+
+void DifferentialDrive::Enable() {
+  enabled_ = true;
 }
 
 
@@ -67,27 +75,48 @@ DifferentialDriveWithImu::~DifferentialDriveWithImu() {
 }
 
 
+void DifferentialDriveWithImu::SetTargetHeading(float heading) {
+  Enable();
+  angular_mode_ = AngularMode::HEADING;
+  target_heading_ = heading;
+}
+
+
+void DifferentialDriveWithImu::SetTargetAngularVelocity(float angular) {
+  angular_mode_ = AngularMode::VELOCITY;
+  DifferentialDrive::SetTargetAngularVelocity(angular);
+}
+
+
+void DifferentialDriveWithImu::Stop()  {
+  DifferentialDrive::Stop();
+  ang_pid_->SetMode(MANUAL);
+}
+
+
 void DifferentialDriveWithImu::Update() {
-  if (angular_mode_ == AngularMode::VELOCITY) {
-    ang_pid_->SetMode(AUTOMATIC);
-    ang_pid_input_ = imu->sample.gyro.z.radps;
-    ang_pid_setpoint_ = target_angular_;
-    ang_pid_->Compute();
-  } else if (angular_mode_ == AngularMode::HEADING) {
-    ang_pid_->SetMode(MANUAL);
-    ang_pid_output_ = 10. * trunc_angle(target_heading_ - imu->sample.orient.yaw);
-  } else {
-    ang_pid_->SetMode(MANUAL);
-    ang_pid_output_ = 0;
+  if (enabled_) {
+    if (angular_mode_ == AngularMode::VELOCITY) {
+      ang_pid_->SetMode(AUTOMATIC);
+      ang_pid_input_ = imu->sample.gyro.z.radps;
+      ang_pid_setpoint_ = target_angular_;
+      ang_pid_->Compute();
+    } else if (angular_mode_ == AngularMode::HEADING) {
+      ang_pid_->SetMode(MANUAL);
+      ang_pid_output_ = 4. * trunc_angle(target_heading_ - imu->sample.orient.yaw);
+    } else {
+      ang_pid_->SetMode(MANUAL);
+      ang_pid_output_ = 0;
+    }
+
+    float angular = ang_pid_output_ * track_width_ / 2.0f;
+
+    float left_target_velocity = target_linear_ - angular;
+    float right_target_velocity = target_linear_ + angular;
+
+    left_motor_->SetTargetVelocity(left_target_velocity * ticks_per_meter_);
+    right_motor_->SetTargetVelocity(right_target_velocity * ticks_per_meter_);
   }
-
-  float angular = ang_pid_output_ * track_width_ / 2.0f;
-
-  float left_target_velocity = target_linear_ - angular;
-  float right_target_velocity = target_linear_ + angular;
-
-  left_motor_->SetTargetVelocity(left_target_velocity * ticks_per_meter_);
-  right_motor_->SetTargetVelocity(right_target_velocity * ticks_per_meter_);
 
   left_motor_->Update();
   right_motor_->Update();

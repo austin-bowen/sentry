@@ -42,12 +42,13 @@ MotorController::~MotorController() {
 
 
 void MotorController::SetTargetVelocity(float ticks_per_second) {
+  Enable();
   pid_setpoint_ = ticks_per_second;
-  pid_->SetMode(AUTOMATIC);
 }
 
 
 void MotorController::Stop() {
+  enabled_ = false;
   pid_setpoint_ = 0;
   pid_->SetMode(MANUAL);
 }
@@ -55,6 +56,12 @@ void MotorController::Stop() {
 
 void MotorController::Brake() {
   SetTargetVelocity(0);
+}
+
+
+void MotorController::Enable() {
+  enabled_ = true;
+  pid_->SetMode(AUTOMATIC);
 }
 
 
@@ -74,7 +81,8 @@ void MotorController::UpdateActualVelocity() {
 void MotorController::Update() {
   UpdateActualVelocity();
 
-  pid_->Compute();
-
-  motor_driver_->SetPower(pid_output_);
+  if (enabled_) {
+    pid_->Compute();
+    motor_driver_->SetPower(pid_output_);
+  }
 }

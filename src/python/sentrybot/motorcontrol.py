@@ -22,6 +22,9 @@ class DriveMotorController:
         conn = SerialPackets(conn)
         return DriveMotorController(conn)
 
+    def stop(self):
+        self._write_then_read_ack(Request.stop())
+
     def set_motor_velocities(self, left, right):
         ...
 
@@ -83,7 +86,6 @@ class DriveMotorController:
         return self.conn.write_then_read(data)
 
     def _write_then_read_ack(self, data: bytes) -> None:
-        print(f'data={data}')
         response = self._write_then_read(data)
 
         if response != Response.ACK:
@@ -129,6 +131,10 @@ class Request:
     def set_target_heading(heading: float) -> bytes:
         heading_centirad = round(heading * 100)
         return Request.SET_TARGET_HEADING_STRUCT.pack(b'\x04', heading_centirad)
+
+    @staticmethod
+    def stop() -> bytes:
+        return b'\x05'
 
 
 class Response:
@@ -178,26 +184,93 @@ class MotorControlError(Exception):
     pass
 
 
-def main():
-    motors = DriveMotorController.connect('/dev/ttyACM0')
-
+def test0(motors: DriveMotorController):
     speed = 0.2
     motors.set_target_heading(deg=0)
 
     while True:
         motors.set_linear_velocity(speed)
-        time.sleep(16)
-
-        motors.set_linear_velocity(0.)
-        motors.change_target_heading(deg=-90)
-        time.sleep(3)
-
-        motors.set_linear_velocity(speed)
         time.sleep(12)
 
         motors.set_linear_velocity(0.)
+        motors.change_target_heading(deg=-45)
+        time.sleep(2)
+
+        motors.set_linear_velocity(speed)
+        time.sleep(5.5)
+
+        motors.set_linear_velocity(0.)
+        motors.change_target_heading(deg=-45)
+        time.sleep(2)
+
+        motors.set_linear_velocity(speed)
+        time.sleep(8)
+
+        motors.set_linear_velocity(0.)
         motors.change_target_heading(deg=-90)
         time.sleep(3)
+
+
+def test1(motors: DriveMotorController):
+    speed = 0.2
+    motors.set_target_heading(deg=0)
+    motors.set_linear_velocity(speed)
+
+    while True:
+        time.sleep(12.5)
+        motors.change_target_heading(deg=-45)
+        time.sleep(5.5)
+        motors.change_target_heading(deg=-45)
+        time.sleep(8.5)
+        motors.change_target_heading(deg=-90)
+
+
+def test2(motors: DriveMotorController):
+    motors.set_target_heading(deg=0)
+
+    while True:
+        motors.change_target_heading(deg=180)
+        time.sleep(5)
+
+        motors.change_target_heading(deg=-180)
+        time.sleep(5)
+
+
+def test3(motors: DriveMotorController):
+    speed = 0.3
+    motors.set_target_heading(deg=0)
+    motors.set_linear_velocity(speed)
+
+    direction = 1
+    parts = 32
+    while True:
+        for _ in range(parts):
+            motors.change_target_heading(deg=direction * 360 / parts)
+            time.sleep(15 / parts)
+
+        direction *= -1
+
+
+def test4(motors: DriveMotorController):
+    speed = 0.2
+    motors.set_linear_velocity(speed)
+
+    direction = 1
+    t = 15
+    while True:
+        motors.set_angular_velocity(deg=direction * 360 / t)
+        time.sleep(t)
+
+        direction *= -1
+
+
+def main():
+    motors = DriveMotorController.connect('/dev/ttyACM0')
+
+    try:
+        test4(motors)
+    finally:
+        motors.stop()
 
 
 if __name__ == '__main__':

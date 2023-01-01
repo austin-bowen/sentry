@@ -261,6 +261,7 @@ void handle_commands() {
   static const byte COMMAND_SET_LINEAR_VELOCITY = 0x02;
   static const byte COMMAND_SET_ANGULAR_VELOCITY = 0x03;
   static const byte COMMAND_SET_TARGET_HEADING = 0x04;
+  static const byte COMMAND_STOP = 0x05;
   static const byte ACK = 0x00;
   static const byte NCK = 0x01;
 
@@ -278,7 +279,7 @@ void handle_commands() {
   } else if (command == COMMAND_GET_STATUS) {
     // TODO
   } else if (command == COMMAND_SET_LINEAR_VELOCITY) {
-    short linear_cm        = ((short)read_buffer[1] << 8) | (short)read_buffer[2];
+    short linear_cm = ((short)read_buffer[1] << 8) | (short)read_buffer[2];
     float linear = linear_cm / 100.f;
     locomotion.SetTargetLinearVelocity(linear);
   } else if (command == COMMAND_SET_ANGULAR_VELOCITY) {
@@ -289,6 +290,8 @@ void handle_commands() {
     short heading_centirad = ((short)read_buffer[1] << 8) | (short)read_buffer[2];
     float heading = heading_centirad / 100.f;
     locomotion.SetTargetHeading(heading);
+  } else if (command == COMMAND_STOP) {
+    locomotion.Stop();
   } else {
     response[0] = NCK;
   }

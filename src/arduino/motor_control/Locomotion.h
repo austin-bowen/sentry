@@ -54,10 +54,14 @@ class DifferentialDrive : public Locomotion {
     MotorController *right_motor_;
     unsigned long ticks_per_meter_;
     float track_width_;
+
+    bool enabled_ = true;
+
+    void Enable();
 };
 
 
-enum class AngularMode { NONE, VELOCITY, HEADING };
+enum class AngularMode { VELOCITY, HEADING };
 
 
 class DifferentialDriveWithImu : public DifferentialDrive {
@@ -72,26 +76,19 @@ class DifferentialDriveWithImu : public DifferentialDrive {
 
     ~DifferentialDriveWithImu();
 
-    void SetTargetHeading(float heading) {
-      angular_mode_ = AngularMode::HEADING;
-      target_heading_ = heading;
-    }
+    void SetTargetHeading(float heading);
 
-    void SetTargetAngularVelocity(float angular) {
-      angular_mode_ = AngularMode::VELOCITY;
-      DifferentialDrive::SetTargetAngularVelocity(angular);
-    }
+    void SetTargetAngularVelocity(float angular);
 
-    void DisableAngularControl() {
-      angular_mode_ = AngularMode::NONE;
-    }
+    /* Sets target velocities to 0 and allows the motor to rotate freely. */
+    void Stop();
 
     void Update();
 
   public:
     SentryIMU::SentryIMU *imu;
 
-    AngularMode angular_mode_ = AngularMode::NONE;
+    AngularMode angular_mode_ = AngularMode::VELOCITY;
     float target_heading_ = 0.0f;
 
     PID *ang_pid_;

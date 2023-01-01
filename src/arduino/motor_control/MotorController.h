@@ -50,5 +50,9 @@ class MotorController {
     unsigned long prev_t_us_;
     long prev_ticks_;
 
+    bool enabled_ = true;
+
+    void Enable();
+
     void UpdateActualVelocity();
 };
