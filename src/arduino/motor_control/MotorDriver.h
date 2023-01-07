@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef MOTOR_CONTROL_MOTOR_DRIVER_H_
+#define MOTOR_CONTROL_MOTOR_DRIVER_H_
 
 class MotorDriver {
   public:
@@ -28,3 +28,5 @@ class MotorDriver {
     bool reverse_ = false;
     bool invert_power_on_reverse_ = true;
 };
+
+#endif

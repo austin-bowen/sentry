@@ -42,7 +42,7 @@ void MotorDriver::SetPower(float power) {
 
 
 void MotorDriver::Stop() {
-  SetPower(0);
+  SetPower(0.0);
 }
 
 

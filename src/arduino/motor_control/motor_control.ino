@@ -89,6 +89,8 @@ SerialPackets serial_packets;
 
 
 void setup() {
+  Serial.begin(115200);
+
   // setup_async_debug();
 
   setup_battery_monitor();
@@ -98,15 +100,13 @@ void setup() {
 
 
 void setup_async_debug() {
-  Serial.begin(115200);
-
   Async::FuncId id = async.RunForever(100, []() {
     // print_async_stats();
-    print_imu_sample();
+    // print_imu_sample();
     // print_battery_stats();
     // print_encoders();
     // print_motor_controllers();
-    // print_locomotion();
+    print_locomotion();
   });
   async.GetFunc(id)->name = "debug";
 }
@@ -114,7 +114,7 @@ void setup_async_debug() {
 
 void print_async_stats() {
   async.PrintStats(Serial);
-//  Serial.println("async_load");
+//  Serial.print("async_load: ");
 //  Serial.print(async.GetLoad());
 //  Serial.println();
 }
@@ -237,12 +237,6 @@ void setup_motors() {
     handle_right_motor_enc_a_change,
     handle_right_motor_enc_b_change
   );
-
-  // Setup controllers
-  Async::FuncId id = async.RunForever(MOTOR_CONTROLLER_UPDATE_PERIOD, []() {
-    locomotion.Update();
-  });
-  async.GetFunc(id)->name = "motors";
 }
 
 
@@ -303,4 +297,5 @@ void handle_commands() {
 void loop() {
   handle_commands();
   async.Handle();
+  locomotion.Update();
 }

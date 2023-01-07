@@ -264,12 +264,37 @@ def test4(motors: DriveMotorController):
         direction *= -1
 
 
+def test5(motors: DriveMotorController):
+    while True:
+        print('forward')
+        motors.set_linear_velocity(0.1)
+        time.sleep(3)
+
+        print('backward')
+        motors.set_linear_velocity(-0.1)
+        time.sleep(3)
+
+
+def test6(motors: DriveMotorController):
+    motors.set_linear_velocity(0)
+
+    while True:
+        print('target')
+        motors.set_target_heading(0)
+        time.sleep(2)
+
+        print('stop')
+        motors.stop()
+        time.sleep(10)
+
+
 def main():
     motors = DriveMotorController.connect('/dev/ttyACM0')
 
     try:
-        test4(motors)
+        test6(motors)
     finally:
+        print('stop')
         motors.stop()
 
 

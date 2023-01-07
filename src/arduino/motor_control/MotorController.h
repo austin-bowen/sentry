@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MOTOR_CONTROL_MOTOR_CONTROLLER_H_
+#define MOTOR_CONTROL_MOTOR_CONTROLLER_H_
 
 #include <PID_v1.h>
 
@@ -41,6 +42,7 @@ class MotorController {
   private:
     MotorDriver *motor_driver_;
     Encoder *encoder_;
+    unsigned int sample_time_ms_;
 
     PID *pid_;
     double pid_input_;
@@ -50,9 +52,11 @@ class MotorController {
     unsigned long prev_t_us_;
     long prev_ticks_;
 
-    bool enabled_ = true;
+    bool enabled_ = false;
 
     void Enable();
 
     void UpdateActualVelocity();
 };
+
+#endif

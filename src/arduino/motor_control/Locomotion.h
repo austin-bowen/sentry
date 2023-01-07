@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MOTOR_CONTROL_LOCOMOTION_H_
+#define MOTOR_CONTROL_LOCOMOTION_H_
 
 #include <PID_v1.h>
 
@@ -45,6 +46,9 @@ class DifferentialDrive : public Locomotion {
       track_width_ = track_width;
     }
 
+    void SetTargetLinearVelocity(float linear);
+    void SetTargetAngularVelocity(float angular);
+
     void Stop();
   
     void Update();
@@ -55,7 +59,7 @@ class DifferentialDrive : public Locomotion {
     unsigned long ticks_per_meter_;
     float track_width_;
 
-    bool enabled_ = true;
+    bool enabled_ = false;
 
     void Enable();
 };
@@ -96,3 +100,5 @@ class DifferentialDriveWithImu : public DifferentialDrive {
     double ang_pid_output_;
     double ang_pid_setpoint_;
 };
+
+#endif

@@ -13,8 +13,22 @@ double trunc_angle(double angle) {
 }
 
 
+void DifferentialDrive::SetTargetLinearVelocity(float linear) {
+  Enable();
+  Locomotion::SetTargetLinearVelocity(linear);
+}
+
+
+void DifferentialDrive::SetTargetAngularVelocity(float angular) {
+  Enable();
+  Locomotion::SetTargetAngularVelocity(angular);
+}
+
+
 void DifferentialDrive::Stop() {
   enabled_ = false;
+  Locomotion::SetTargetLinearVelocity(0.0);
+  Locomotion::SetTargetAngularVelocity(0.0);
   left_motor_->Stop();
   right_motor_->Stop();
 }
@@ -63,15 +77,12 @@ DifferentialDriveWithImu::DifferentialDriveWithImu(
   );
 
   ang_pid_->SetOutputLimits(-2 * PI, 2 * PI);
-
   ang_pid_->SetSampleTime(1000 / 10);
-
-  ang_pid_->SetMode(AUTOMATIC);
 }
 
 
 DifferentialDriveWithImu::~DifferentialDriveWithImu() {
-  delete ang_pid_;
+  delete ang_pid_; ang_pid_ = nullptr;
 }
 
 

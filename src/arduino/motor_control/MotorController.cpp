@@ -14,6 +14,7 @@ MotorController::MotorController(
 ) {
   motor_driver_ = motor_driver;
   encoder_ = encoder;
+  sample_time_ms_ = sample_time_ms;
 
   pid_ = new PID(
     &pid_input_,
@@ -49,6 +50,7 @@ void MotorController::SetTargetVelocity(float ticks_per_second) {
 
 void MotorController::Stop() {
   enabled_ = false;
+  motor_driver_->Stop();
   pid_setpoint_ = 0;
   pid_->SetMode(MANUAL);
 }
@@ -67,14 +69,15 @@ void MotorController::Enable() {
 
 void MotorController::UpdateActualVelocity() {
   unsigned long t_us = micros();
-  long ticks = encoder_->GetTicks();
-
-  // TODO: Low-pass filter this
   const float dt = (float)(t_us - prev_t_us_) / 1e6;
-  pid_input_ = (float)(ticks - prev_ticks_) / dt;
 
-  prev_t_us_ = t_us;
-  prev_ticks_ = ticks;
+  if (dt * 1000 >= sample_time_ms_) {
+    long ticks = encoder_->GetTicks();
+    pid_input_ = (float)(ticks - prev_ticks_) / dt;
+
+    prev_t_us_ = t_us;
+    prev_ticks_ = ticks;
+  }
 }
 
 
