@@ -1,33 +1,44 @@
-from flask import Flask, render_template
-from flask_socketio import SocketIO
 from time import monotonic
 
+from flask import Flask, Response, render_template
+from flask_socketio import SocketIO
+
+from camera import CameraCapturer
 from sentrybot.motorcontrol import DriveMotorController
 
 app = Flask(__name__)
 socketio = SocketIO(app)
 
+camera_capturer = CameraCapturer.build()
+
 last_command_t = 0
 
-
-class DummyMotorController:
-    def set_linear_velocity(self, linear: float):
-        print(f'linear={linear}')
-
-    def set_angular_velocity(self, rad: float):
-        print(f'angular={rad}')
-
-    def stop(self):
-        print('stop')
-
-
-# motor_controller = DummyMotorController()
 motor_controller = DriveMotorController.connect('/dev/ttyACM0')
 
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(
+        generate_frames(),
+        mimetype='multipart/x-mixed-replace; boundary=frame'
+    )
+
+
+def generate_frames():
+    message_prefix = (
+        b'--frame\r\n'
+        b'Content-Type: image/jpeg\r\n'
+        b'\r\n'
+    )
+    message_suffix = b'\r\n'
+
+    for frame in camera_capturer:
+        yield message_prefix + frame + message_suffix
 
 
 @socketio.on('connect')

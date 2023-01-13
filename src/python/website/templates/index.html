@@ -11,11 +11,19 @@
 
       h1 {
         text-align: center;
-      {
+      }
+
+      img.video_feed {
+        display: block;
+        margin: 0 auto;
+        width: calc(min(1024px, 100%));
+      }
     </style>
   </head>
   <body>
     <h1>Sentry</h1>
+
+    <img class="video_feed" src="{{ url_for('video_feed') }}">
 
     <div id="joystick"></div>
 
@@ -93,7 +101,7 @@
       }
 
       function getMaxLinearSpeed() {
-        return 0.2
+        return 0.25
       }
 
       function joystickToAngularVelocity(position) {
@@ -105,7 +113,7 @@
       }
 
       function getMaxAngularSpeed() {
-        return Math.PI / 2
+        return Math.PI / 3
       }
 
       main()
