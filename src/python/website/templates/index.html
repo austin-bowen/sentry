@@ -15,12 +15,47 @@
 
     <div id="joystick"></div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"
+            integrity="sha512-HTENHrkQ/P0NGDFd5nk6ibVtCkcM7jhr2c7GyvXp5O+4X6O5cQO9AhqFzM+MdeBivsX7Hoys2J7pp2wdgMpCvw=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+
     <!-- Joystick lib -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.0/nipplejs.min.js"></script>
 
     <script>
+      class MotorController {
+        constructor() {
+          this.socket = io()
+
+          this.socket.onerror = (event) => {
+            console.error(event)
+          }
+
+          this.socket.onmessage = (event) => {
+            console.log('onmessage')
+            console.log(event)
+          }
+        }
+
+        drive(linear, angular) {
+          this.socket.emit('motorController.drive', {linear: linear, angular: angular})
+        }
+
+        stop() {
+          this.socket.emit('motorController.stop')
+        }
+      }
+
+      var motorController = null
+
       function main() {
+        setupMotorController()
         setupJoystick()
+      }
+
+      function setupMotorController() {
+        motorController = new MotorController()
       }
 
       function setupJoystick() {
@@ -32,7 +67,7 @@
         })
 
         joystickManager.on('end', function(event, joystick) {
-          stop()
+          motorController.stop()
         })
 
         joystickManager.on('move', function(event, joystick) {
@@ -46,7 +81,7 @@
 
         // TODO: Reverse angular if linear is negative?
 
-        drive(linear, angular)
+        motorController.drive(linear, angular)
       }
 
       function joystickToLinearVelocity(position) {
@@ -71,16 +106,6 @@
 
       function getMaxAngularSpeed() {
         return Math.PI / 2
-      }
-
-      function drive(linear, angular) {
-        // TODO
-        console.log(`Drive: ${linear}, ${angular}`)
-      }
-
-      function stop() {
-        // TODO
-        console.log('Stop')
       }
 
       main()
