@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentry</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Hello</h1>
+
+    <div id="joystick"></div>
+
+    <!-- Joystick lib -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.0/nipplejs.min.js"></script>
+
+    <script>
+      function main() {
+        setupJoystick()
+      }
+
+      function setupJoystick() {
+        const joystickManager = nipplejs.create({
+          zone: document.getElementById('joystick'),
+          color: 'black',
+          position: {left: '5rem', bottom: '5rem'},
+          mode: 'static',
+        })
+
+        joystickManager.on('end', function(event, joystick) {
+          stop()
+        })
+
+        joystickManager.on('move', function(event, joystick) {
+          handleJoystickMovement(joystick.vector.x, joystick.vector.y)
+        })
+      }
+
+      function handleJoystickMovement(x, y) {
+        const linear = joystickToLinearVelocity(y)
+        const angular = joystickToAngularVelocity(x)
+
+        // TODO: Reverse angular if linear is negative?
+
+        drive(linear, angular)
+      }
+
+      function joystickToLinearVelocity(position) {
+        if (Math.abs(position) < 0.1) {
+          return 0.0
+        }
+
+        return position * getMaxLinearSpeed()
+      }
+
+      function getMaxLinearSpeed() {
+        return 0.2
+      }
+
+      function joystickToAngularVelocity(position) {
+        if (Math.abs(position) < 0.1) {
+          return 0.0
+        }
+
+        return -position * getMaxAngularSpeed()
+      }
+
+      function getMaxAngularSpeed() {
+        return Math.PI / 2
+      }
+
+      function drive(linear, angular) {
+        // TODO
+        console.log(`Drive: ${linear}, ${angular}`)
+      }
+
+      function stop() {
+        // TODO
+        console.log('Stop')
+      }
+
+      main()
+    </script>
+  </body>
+</html>
