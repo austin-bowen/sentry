@@ -2,3 +2,4 @@ eventlet
 flask
 flask-socketio
 picamera
+pyserial

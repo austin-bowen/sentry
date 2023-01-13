@@ -1,19 +1,28 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
+from time import monotonic
+
+from sentrybot.motorcontrol import DriveMotorController
 
 app = Flask(__name__)
 socketio = SocketIO(app)
 
+last_command_t = 0
 
-class MotorController:
-    def drive(self, linear, angular):
-        print(f'drive: {linear}, {angular}')
+
+class DummyMotorController:
+    def set_linear_velocity(self, linear: float):
+        print(f'linear={linear}')
+
+    def set_angular_velocity(self, rad: float):
+        print(f'angular={rad}')
 
     def stop(self):
         print('stop')
 
 
-motor_controller = MotorController()
+# motor_controller = DummyMotorController()
+motor_controller = DriveMotorController.connect('/dev/ttyACM0')
 
 
 @app.route('/')
@@ -35,7 +44,16 @@ def handle_disconnect():
 
 @socketio.on('motorController.drive')
 def handle_motor_controller_drive(linear: float, angular: float):
-    motor_controller.drive(linear, angular)
+    global last_command_t
+
+    t = monotonic()
+    if (t - last_command_t) < 0.1:
+        return
+
+    motor_controller.set_linear_velocity(linear)
+    motor_controller.set_angular_velocity(rad=angular)
+
+    last_command_t = monotonic()
 
 
 @socketio.on('motorController.stop')
