@@ -5,24 +5,42 @@ app = Flask(__name__)
 socketio = SocketIO(app)
 
 
+class MotorController:
+    def drive(self, linear, angular):
+        print(f'drive: {linear}, {angular}')
+
+    def stop(self):
+        print('stop')
+
+
+motor_controller = MotorController()
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
+@socketio.on('connect')
+def handle_connect(auth):
+    print('Client connected')
+    motor_controller.stop()
+
+
 @socketio.on('disconnect')
-def test_disconnect():
-    handle_motor_controller_stop()
+def handle_disconnect():
+    print('Client disconnected')
+    motor_controller.stop()
 
 
 @socketio.on('motorController.drive')
-def handle_motor_controller_drive(args):
-    print(f'drive: {args}')
+def handle_motor_controller_drive(linear: float, angular: float):
+    motor_controller.drive(linear, angular)
 
 
 @socketio.on('motorController.stop')
 def handle_motor_controller_stop():
-    print('stop')
+    motor_controller.stop()
 
 
 def main():

@@ -25,21 +25,12 @@
 
     <script>
       class MotorController {
-        constructor() {
-          this.socket = io()
-
-          this.socket.onerror = (event) => {
-            console.error(event)
-          }
-
-          this.socket.onmessage = (event) => {
-            console.log('onmessage')
-            console.log(event)
-          }
+        constructor(socket) {
+          this.socket = socket
         }
 
         drive(linear, angular) {
-          this.socket.emit('motorController.drive', {linear: linear, angular: angular})
+          this.socket.emit('motorController.drive', linear, angular)
         }
 
         stop() {
@@ -55,8 +46,8 @@
       }
 
       function setupMotorController() {
-        motorController = new MotorController()
-        motorController.stop()
+        const socket = io()
+        motorController = new MotorController(socket)
 
         window.onbeforeunload = () => {
           motorController.stop()
