@@ -1,82 +1,59 @@
-from time import monotonic
+from functools import cache
 
-from flask import Flask, Response, render_template
+from flask import Flask, render_template
 from flask_socketio import SocketIO
 
-from camera import CameraCapturer
+from sentrybot.config.main import config
 from sentrybot.motorcontrol import DriveMotorController
 
 app = Flask(__name__)
 socketio = SocketIO(app)
 
-camera_capturer = CameraCapturer.build()
 
-last_command_t = 0
-
-motor_controller = DriveMotorController.connect('/dev/ttyACM0')
+@cache
+def motor_controller():
+    DriveMotorController.connect(config.motor_control.serial.path)
 
 
 @app.route('/')
 def index():
-    return render_template('index.html')
-
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(
-        generate_frames(),
-        mimetype='multipart/x-mixed-replace; boundary=frame'
+    return render_template(
+        'index.html',
+        video_stream_port=config.camera.stream.port,
+        video_stream_path=config.camera.stream.path,
     )
-
-
-def generate_frames():
-    message_prefix = (
-        b'--frame\r\n'
-        b'Content-Type: image/jpeg\r\n'
-        b'\r\n'
-    )
-    message_suffix = b'\r\n'
-
-    for frame in camera_capturer:
-        yield message_prefix + frame + message_suffix
 
 
 @socketio.on('connect')
 def handle_connect(auth):
     print('Client connected')
-    motor_controller.stop()
+    motor_controller().stop()
 
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print('Client disconnected')
-    motor_controller.stop()
+    motor_controller().stop()
 
 
 @socketio.on('motorController.drive')
 def handle_motor_controller_drive(linear: float, angular: float):
-    global last_command_t
-
-    t = monotonic()
-    if (t - last_command_t) < 0.1:
-        return
-
-    motor_controller.set_linear_velocity(linear)
-    motor_controller.set_angular_velocity(rad=angular)
-
-    last_command_t = monotonic()
+    motor_controller().set_linear_velocity(linear)
+    motor_controller().set_angular_velocity(rad=angular)
 
 
 @socketio.on('motorController.stop')
 def handle_motor_controller_stop():
-    motor_controller.stop()
+    motor_controller().stop()
 
 
 def main():
+    print(f'config={config}\n')
+
     socketio.run(
         app,
-        host='0.0.0.0',
-        port=8080,
+        host=config.website.host,
+        port=config.website.port,
         debug=True,
         use_reloader=False,
     )

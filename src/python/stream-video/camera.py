@@ -2,8 +2,6 @@ import io
 import time
 from threading import Condition, RLock, Thread
 
-from picamera import PiCamera
-
 
 class CameraCapturer(Thread):
     def __init__(
@@ -22,21 +20,6 @@ class CameraCapturer(Thread):
         self._condition = Condition()
         self._latest = None
         self._latest_lock = RLock()
-
-    @staticmethod
-    def build() -> 'CameraCapturer':
-        camera = PiCamera()
-        # size = (512, 384)
-        # size = (800, 600)
-        size = (1024, 768)
-        camera.resolution = size
-        camera.framerate = 10
-        camera.rotation = 180
-        time.sleep(2)
-
-        cap = CameraCapturer(camera)
-        cap.start()
-        return cap
 
     def __iter__(self):
         return self

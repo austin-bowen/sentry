@@ -13,7 +13,7 @@
         text-align: center;
       }
 
-      img.video_feed {
+      #video_feed {
         display: block;
         margin: 0 auto;
         width: calc(min(1024px, 100%));
@@ -23,7 +23,7 @@
   <body>
     <h1>Sentry</h1>
 
-    <img class="video_feed" src="{{ url_for('video_feed') }}">
+    <img id="video_feed" src="">
 
     <div id="joystick"></div>
 
@@ -53,6 +53,12 @@
       var motorController = null
 
       function main() {
+        const videoFeed = document.getElementById('video_feed')
+        const videoFeedUrl = new URL(window.location.href)
+        videoFeedUrl.port = {{ video_stream_port }}
+        videoFeedUrl.pathname = '/video_feed'
+        videoFeed.src = videoFeedUrl.href
+
         setupMotorController()
         setupJoystick()
       }
