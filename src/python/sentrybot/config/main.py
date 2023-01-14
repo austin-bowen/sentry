@@ -25,6 +25,7 @@ config = Config(
     ),
     camera=Config(
         framerate=10,
+        print_fps=False,
         # resolution=(512, 384),
         # resolution=(800, 600),
         resolution=(1024, 768),

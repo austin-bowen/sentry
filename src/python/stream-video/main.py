@@ -14,7 +14,7 @@ camera.framerate = config.camera.framerate
 camera.rotation = 180
 time.sleep(2)
 
-camera_capturer = CameraCapturer(camera)
+camera_capturer = CameraCapturer(camera, print_fps=config.camera.print_fps)
 camera_capturer.start()
 
 

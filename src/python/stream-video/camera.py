@@ -10,12 +10,14 @@ class CameraCapturer(Thread):
             resize=None,
             name: str = 'CameraCapturer',
             daemon: bool = True,
+            print_fps: bool = False,
             **kwargs
     ):
         super().__init__(name=name, daemon=daemon, **kwargs)
 
         self.camera = camera
         self.resize = resize
+        self.print_fps = print_fps
 
         self._condition = Condition()
         self._latest = None
@@ -47,10 +49,11 @@ class CameraCapturer(Thread):
                 buffer.seek(0)
                 buffer.truncate()
 
-                t1 = time.monotonic()
-                fps = round(1. / (t1 - t0))
-                print(f'FPS={fps}')
-                t0 = time.monotonic()
+                if self.print_fps:
+                    t1 = time.monotonic()
+                    fps = round(1. / (t1 - t0))
+                    print(f'FPS={fps}')
+                    t0 = time.monotonic()
 
     def get_next(self):
         with self._condition:
