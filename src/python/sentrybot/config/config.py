@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, List
 
 
 class Config(dict):
@@ -19,7 +19,7 @@ class Config(dict):
             '}'
         ])
 
-    def _get_entry_lines(self) -> list[str]:
+    def _get_entry_lines(self) -> List[str]:
         indent = '    '
         lines = []
 
