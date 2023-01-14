@@ -1,5 +1,5 @@
 import os
-from typing import Any, List
+from typing import Any, List, Optional
 
 
 class Config(dict):
@@ -34,7 +34,7 @@ class Config(dict):
         return lines
 
 
-def env_var(name: str, default=None, required: bool = False) -> str | Any:
+def env_var(name: str, default=None, required: bool = False) -> Optional[str]:
     """
     Returns the value of the environment variable with the given name,
     or ``default`` if it is not set.
