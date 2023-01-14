@@ -12,7 +12,7 @@ socketio = SocketIO(app)
 
 @lru_cache(None)
 def motor_controller():
-    DriveMotorController.connect(config.motor_control.serial.path)
+    return DriveMotorController.connect(config.motor_control.serial.path)
 
 
 @app.route('/')
