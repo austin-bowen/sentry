@@ -1,4 +1,4 @@
-from functools import cache
+from functools import lru_cache
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO
@@ -10,7 +10,7 @@ app = Flask(__name__)
 socketio = SocketIO(app)
 
 
-@cache
+@lru_cache(None)
 def motor_controller():
     DriveMotorController.connect(config.motor_control.serial.path)
 
