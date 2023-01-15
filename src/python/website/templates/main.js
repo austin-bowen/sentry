@@ -103,7 +103,7 @@ function setupJoystick() {
   const joystickManager = nipplejs.create({
     zone: document.getElementById('joystick'),
     color: 'black',
-    position: {left: '5rem', bottom: '5rem'},
+    position: {left: '50%', bottom: '8rem'},
     mode: 'static',
   })
 
