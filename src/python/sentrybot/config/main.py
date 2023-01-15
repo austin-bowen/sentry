@@ -10,14 +10,17 @@ DEV = 'dev'
 SENTRY = 'sentry'
 SENTRY_HOSTNAME = SENTRY
 
+IS_SENTRY = HOSTNAME == SENTRY_HOSTNAME
+
 config = Config(
     hostname=HOSTNAME,
+    is_sentry=IS_SENTRY,
     motor_control=Config(
         serial=Config(
             path='/dev/ttyACM0',
         ),
     ),
-    platform=SENTRY if HOSTNAME == SENTRY_HOSTNAME else DEV,
+    platform=SENTRY if IS_SENTRY else DEV,
     website=Config(
         host='0.0.0.0',
         port=8080,

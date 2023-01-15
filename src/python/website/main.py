@@ -1,4 +1,4 @@
-from functools import lru_cache
+import os
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO
@@ -9,10 +9,21 @@ from sentrybot.motorcontrol import DriveMotorController
 app = Flask(__name__)
 socketio = SocketIO(app)
 
+if config.is_sentry:
+    motor_controller = DriveMotorController.connect(config.motor_control.serial.path)
+else:
+    class DummyMotorController:
+        def stop(self):
+            pass
 
-@lru_cache(None)
-def motor_controller():
-    return DriveMotorController.connect(config.motor_control.serial.path)
+        def set_linear_velocity(self, *args, **kwargs):
+            pass
+
+        def set_angular_velocity(self, *args, **kwargs):
+            pass
+
+
+    motor_controller = DummyMotorController()
 
 
 @app.route('/')
@@ -34,24 +45,32 @@ def main_js():
 @socketio.on('connect')
 def handle_connect(auth):
     print('Client connected')
-    motor_controller().stop()
+    motor_controller.stop()
 
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print('Client disconnected')
-    motor_controller().stop()
+    motor_controller.stop()
 
 
 @socketio.on('motorController.drive')
 def handle_motor_controller_drive(linear: float, angular: float):
-    motor_controller().set_linear_velocity(linear)
-    motor_controller().set_angular_velocity(rad=angular)
+    motor_controller.set_linear_velocity(linear)
+    motor_controller.set_angular_velocity(rad=angular)
 
 
 @socketio.on('motorController.stop')
 def handle_motor_controller_stop():
-    motor_controller().stop()
+    motor_controller.stop()
+
+
+@socketio.on('shutdown')
+def handle_shutdown():
+    print('Shutting down!')
+
+    if config.is_sentry:
+        os.system('sudo shutdown -h now')
 
 
 def main():

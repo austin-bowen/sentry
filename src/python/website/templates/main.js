@@ -26,10 +26,25 @@ const pressedKeys = new Set()
 var motorController = null
 
 function main() {
+  const socket = io()
+
+  setupShutdownButton(socket)
   setupVideoFeed()
-  setupMotorController()
+  setupMotorController(socket)
   setupKeyboard()
   setupJoystick()
+}
+
+function setupShutdownButton(socket) {
+  const button = document.getElementById('shutdown_button')
+  button.onclick = () => {
+    const shutdown = confirm('Shutdown Sentry?')
+
+    if (shutdown) {
+      console.log('Shutdown')
+      socket.emit('shutdown')
+    }
+  }
 }
 
 function setupVideoFeed() {
@@ -40,8 +55,7 @@ function setupVideoFeed() {
   videoFeed.src = videoFeedUrl.href
 }
 
-function setupMotorController() {
-  const socket = io()
+function setupMotorController(socket) {
   motorController = new MotorController(socket)
 
   window.onbeforeunload = () => {
