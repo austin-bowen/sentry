@@ -24,7 +24,7 @@ config = Config(
         password_hash=sha512(secrets.website.password).digest(),
     ),
     camera=Config(
-        framerate=10,
+        framerate=5,
         print_fps=False,
         # resolution=(512, 384),
         resolution=(800, 600),
