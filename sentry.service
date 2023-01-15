@@ -1,0 +1,11 @@
+[Unit]
+Description=Starts the Sentry services
+
+[Service]
+ExecStart=/home/pi/sentry/sentry.sh
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/sentry/
+
+[Install]
+WantedBy=multi-user.target
