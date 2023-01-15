@@ -19,6 +19,13 @@ def motor_controller():
 def index():
     return render_template(
         'index.html',
+    )
+
+
+@app.route('/main.js')
+def main_js():
+    return render_template(
+        'main.js',
         video_stream_port=config.camera.stream.port,
         video_stream_path=config.camera.stream.path,
     )
