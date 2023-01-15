@@ -8,7 +8,7 @@ from sentrybot.config.main import config
 from sentrybot.motorcontrol import DriveMotorController
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, logger=True, engineio_logger=True)
 
 if config.is_sentry:
     motor_controller = DriveMotorController.connect(config.motor_control.serial.path)
