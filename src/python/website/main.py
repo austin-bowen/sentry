@@ -1,4 +1,5 @@
 import os
+import time
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO
@@ -26,7 +27,7 @@ else:
     motor_controller = DummyMotorController()
 
 
-@app.route('/')
+@app.route('/sentry/')
 def index():
     return render_template(
         'index.html',
@@ -70,6 +71,7 @@ def handle_shutdown():
     print('Shutting down!')
 
     if config.is_sentry:
+        time.sleep(1)
         os.system('sudo shutdown -h now')
 
 
