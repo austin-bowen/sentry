@@ -2,5 +2,7 @@
 bin/
 include/
 lib/
+log/
 share/
+__pycache__/
 secrets.py
