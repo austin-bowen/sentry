@@ -3,6 +3,7 @@ import time
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO
+from serial import SerialException
 
 from sentrybot.config.main import config
 from sentrybot.motorcontrol import DriveMotorController
@@ -11,7 +12,12 @@ app = Flask(__name__)
 socketio = SocketIO(app, logger=True, engineio_logger=True)
 
 if config.is_sentry:
-    motor_controller = DriveMotorController.connect(config.motor_control.serial.path)
+    while True:
+        try:
+            motor_controller = DriveMotorController.connect(config.motor_control.serial.path)
+            break
+        except SerialException:
+            time.sleep(1)
 else:
     class DummyMotorController:
         def stop(self):
