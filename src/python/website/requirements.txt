@@ -1,5 +1,6 @@
 eventlet
 flask
+flask_simplelogin
 flask-socketio
 picamera
 pyserial
