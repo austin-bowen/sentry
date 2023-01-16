@@ -35,7 +35,7 @@ class Config(dict):
         return lines
 
     def update(self, other: Mapping, **kwargs) -> None:
-        other = other | kwargs
+        other = {**other, **kwargs}
 
         for k in other:
             self_v = self.get(k, None)
