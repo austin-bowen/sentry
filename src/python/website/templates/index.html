@@ -20,24 +20,23 @@
         margin: 0 0 1rem 0;
       }
 
-      #video_container {
-        position: relative;
-      }
-
-      #video_feed {
+      .video_container {
         display: block;
         margin: 0 auto;
+        position: relative;
         width: calc(min(1024px, 100%));
       }
 
-      #crosshair {
+      .video_container > img {
+        width: 100%;
+      }
+
+      .video_container > canvas {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 2em;
-        color: black;
-        opacity: 0.5;
+        top: 0;
+        left: 0;
+        height: calc(100% - 4px);
+        width: 100%;
       }
     </style>
   </head>
@@ -49,9 +48,9 @@
       <button id="reboot_button">Reboot</button>
     </div>
 
-    <div id="video_container">
+    <div class="video_container">
       <img id="video_feed" src="">
-      <div id="crosshair">+</div>
+      <canvas id="video_canvas" width="800" height="600"></canvas>
     </div>
 
     <div id="joystick"></div>

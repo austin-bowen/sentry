@@ -21,6 +21,7 @@ class MotorController {
   }
 }
 
+const videoCanvas = document.getElementById('video_canvas')
 const driveKeys = new Set(['W', 'A', 'S', 'D'])
 const pressedKeys = new Set()
 var motorController = null
@@ -65,6 +66,32 @@ function setupVideoFeed() {
   videoFeedUrl.port = {{ video_stream_port }}
   videoFeedUrl.pathname = '/'
   videoFeed.src = videoFeedUrl.href
+
+  setupVideoCanvas()
+}
+
+function setupVideoCanvas() {
+  const ctx = videoCanvas.getContext('2d')
+  ctx.globalAlpha = 0.5
+
+  // Crosshair
+  const centerX = 800 / 2
+  const centerY = 600 / 2
+  const size = 5
+  ctx.moveTo(centerX - size, centerY)
+  ctx.lineTo(centerX + size, centerY)
+  ctx.moveTo(centerX, centerY - size)
+  ctx.lineTo(centerX, centerY + size)
+
+  // Left drive guide
+  ctx.moveTo(160, 600)
+  ctx.lineTo(285, 450)
+  ctx.stroke()
+
+  // Right drive guide
+  ctx.moveTo(800 - 160, 600)
+  ctx.lineTo(800 - 285, 450)
+  ctx.stroke()
 }
 
 function setupMotorController(socket) {
