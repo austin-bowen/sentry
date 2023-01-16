@@ -28,21 +28,33 @@ var motorController = null
 function main() {
   const socket = io()
 
-  setupShutdownButton(socket)
+  setupButtons(socket)
   setupVideoFeed()
   setupMotorController(socket)
   setupKeyboard()
   setupJoystick()
 }
 
-function setupShutdownButton(socket) {
-  const button = document.getElementById('shutdown_button')
+function setupButtons(socket) {
+  // Shutdown button
+  var button = document.getElementById('shutdown_button')
   button.onclick = () => {
     const shutdown = confirm('Shutdown Sentry?')
 
     if (shutdown) {
       console.log('Shutdown')
       socket.emit('shutdown')
+    }
+  }
+
+  // Reboot button
+  button = document.getElementById('reboot_button')
+  button.onclick = () => {
+    const reboot = confirm('Reboot Sentry?')
+
+    if (reboot) {
+      console.log('Reboot')
+      socket.emit('reboot')
     }
   }
 }

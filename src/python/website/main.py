@@ -86,6 +86,15 @@ def handle_shutdown():
         os.system('sudo shutdown -h now')
 
 
+@socketio.on('reboot')
+def handle_reboot():
+    print('Rebooting!')
+
+    if config.is_sentry:
+        time.sleep(1)
+        os.system('sudo reboot')
+
+
 def main():
     print(f'config={config}\n')
 
