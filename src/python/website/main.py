@@ -9,6 +9,8 @@ from sentrybot.config.main import config
 from sentrybot.motorcontrol import DriveMotorController
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = config.website.secret_key.value
+
 socketio = SocketIO(app, logger=True, engineio_logger=True)
 
 if config.is_sentry:

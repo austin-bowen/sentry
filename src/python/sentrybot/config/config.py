@@ -1,5 +1,6 @@
 import os
-from typing import Any, List, Optional
+from dataclasses import dataclass
+from typing import Any, List, Optional, Mapping
 
 
 class Config(dict):
@@ -32,6 +33,31 @@ class Config(dict):
                 lines.append(f'{indent}{k}={v!r},')
 
         return lines
+
+    def update(self, other: Mapping, **kwargs) -> None:
+        other = other | kwargs
+
+        for k in other:
+            self_v = self.get(k, None)
+            other_v = other[k]
+
+            if isinstance(self_v, Config) and isinstance(other_v, Config):
+                self_v.update(other_v)
+            else:
+                self[k] = other_v
+
+
+@dataclass(repr=False)
+class Secret:
+    """
+    Just a class that wraps a value and does not display it when
+    str(...) or repr(...) are used.
+    """
+
+    value: Any
+
+    def __repr__(self) -> str:
+        return '<SECRET>'
 
 
 def env_var(name: str, default=None, required: bool = False) -> Optional[str]:

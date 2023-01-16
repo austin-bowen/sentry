@@ -1,4 +1,3 @@
-from hashlib import sha512
 from socket import gethostname
 
 from sentrybot.config.config import Config
@@ -24,7 +23,6 @@ config = Config(
     website=Config(
         host='0.0.0.0',
         port=8080,
-        password_hash=sha512(secrets.website.password).digest(),
     ),
     camera=Config(
         framerate=5,
@@ -39,6 +37,8 @@ config = Config(
         )
     )
 )
+
+config.update(secrets)
 
 if __name__ == '__main__':
     print(f'config={config}')
