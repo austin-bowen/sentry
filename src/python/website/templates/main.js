@@ -51,7 +51,7 @@ function setupVideoFeed() {
   const videoFeed = document.getElementById('video_feed')
   const videoFeedUrl = new URL(window.location.href)
   videoFeedUrl.port = {{ video_stream_port }}
-  videoFeedUrl.pathname = '/video_feed'
+  videoFeedUrl.pathname = '/'
   videoFeed.src = videoFeedUrl.href
 }
 

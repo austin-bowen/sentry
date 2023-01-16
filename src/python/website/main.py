@@ -2,11 +2,13 @@ import os
 import time
 
 from flask import Flask, render_template
+from flask_simplelogin import SimpleLogin, login_required
 from flask_socketio import SocketIO
 from serial import SerialException
 
 from sentrybot.config.main import config
 from sentrybot.motorcontrol import DriveMotorController
+from sentrybot.users import login_checker
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.website.secret_key.value
@@ -35,7 +37,8 @@ else:
     motor_controller = DummyMotorController()
 
 
-@app.route('/sentry/')
+@app.route('/')
+@login_required
 def index():
     return render_template(
         'index.html',
@@ -43,11 +46,11 @@ def index():
 
 
 @app.route('/main.js')
+@login_required
 def main_js():
     return render_template(
         'main.js',
         video_stream_port=config.camera.stream.port,
-        video_stream_path=config.camera.stream.path,
     )
 
 
@@ -85,6 +88,8 @@ def handle_shutdown():
 
 def main():
     print(f'config={config}\n')
+
+    SimpleLogin(app, login_checker=login_checker)
 
     socketio.run(
         app,
