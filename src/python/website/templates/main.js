@@ -34,6 +34,7 @@ function main() {
   setupMotorController(socket)
   setupKeyboard()
   setupJoystick()
+  setupStatusDisplay(socket)
 }
 
 function setupButtons(socket) {
@@ -198,6 +199,14 @@ function joystickToAngularVelocity(position) {
 
 function getMaxAngularSpeed() {
   return Math.PI / 3
+}
+
+function setupStatusDisplay(socket) {
+  const statusDiv = document.getElementById('status')
+
+  socket.on('status', status => {
+    statusDiv.innerHTML = status
+  })
 }
 
 main()

@@ -9,6 +9,7 @@ from serial import SerialException
 from sentrybot.config.main import config
 from sentrybot.motorcontrol import DriveMotorController
 from sentrybot.users import login_checker
+from status import StatusEmitter
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.website.secret_key.value
@@ -99,6 +100,8 @@ def main():
     print(f'config={config}\n')
 
     SimpleLogin(app, login_checker=login_checker)
+
+    StatusEmitter.build(socketio)
 
     socketio.run(
         app,
