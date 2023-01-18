@@ -85,13 +85,13 @@ function setupVideoCanvas() {
   ctx.lineTo(centerX, centerY + size)
 
   // Left drive guide
-  ctx.moveTo(160, 600)
-  ctx.lineTo(285, 450)
+  ctx.moveTo(145, 600)
+  ctx.lineTo(270, 450)
   ctx.stroke()
 
   // Right drive guide
-  ctx.moveTo(800 - 160, 600)
-  ctx.lineTo(800 - 285, 450)
+  ctx.moveTo(800 - 145, 600)
+  ctx.lineTo(800 - 270, 450)
   ctx.stroke()
 }
 
