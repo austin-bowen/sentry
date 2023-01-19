@@ -35,6 +35,11 @@ config = Config(
             host='0.0.0.0',
             port=8081,
         )
+    ),
+    status_report=Config(
+        wifi=Config(
+            interface='wlan0' if IS_SENTRY else 'wlp0s20f3'
+        )
     )
 )
 
