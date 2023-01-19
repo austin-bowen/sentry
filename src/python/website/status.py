@@ -7,6 +7,7 @@ import psutil
 from flask_socketio import SocketIO
 
 from sentrybot.config.main import config
+from sentrybot.vcgencmd import get_throttled, ThrottlingResult
 
 
 class StatusEmitter:
@@ -51,12 +52,18 @@ class StatusSupplier:
     def get_status(self) -> 'Status':
         cpu_usage_avg, cpu_usage_max = self.get_cpu_usage()
 
+        try:
+            throttling = get_throttled()
+        except FileNotFoundError:
+            throttling = None
+
         return Status(
             loadavg=self.get_loadavg(),
             cpu_usage_avg=cpu_usage_avg,
             cpu_usage_max=cpu_usage_max,
             mem_usage=psutil.virtual_memory().percent,
             wifi_bit_rate_Mbps=self.get_wifi_bit_rate(),
+            throttling=throttling,
         )
 
     def get_loadavg(self) -> str:
@@ -108,6 +115,7 @@ class Status:
     cpu_usage_max: float
     mem_usage: float
     wifi_bit_rate_Mbps: Optional[float]
+    throttling: Optional[ThrottlingResult]
 
     def to_html(self) -> str:
         wifi_speed = (
@@ -116,9 +124,22 @@ class Status:
             f'Unknown'
         )
 
-        return rf'''
+        result = rf'''
             <strong>loadavg:</strong> {self.loadavg}<br>
             <strong>CPU (avg/max):</strong> {round(self.cpu_usage_avg)}/{round(self.cpu_usage_max)}%<br>
             <strong>Memory:</strong> {round(self.mem_usage)}%<br>
             <strong>WiFi Speed:</strong> {wifi_speed}
-        '''.strip()
+        '''
+
+        if self.throttling and self.throttling.is_throttled:
+            result += '<br><br><strong style="color: red;">THROTTLING IS OCCURRING!'
+
+            if self.throttling.is_under_voltage:
+                result += '<br>- Under-voltage detected'
+
+            if self.throttling.is_temp_limit:
+                result += '<br>- Temp limit reached'
+
+            result += '</strong>'
+
+        return result.strip()
