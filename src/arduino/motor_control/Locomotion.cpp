@@ -108,9 +108,9 @@ void DifferentialDriveWithImu::Stop()  {
 void DifferentialDriveWithImu::Update() {
   if (enabled_) {
     if (angular_mode_ == AngularMode::VELOCITY) {
-      ang_pid_->SetMode(AUTOMATIC);
       ang_pid_input_ = imu->sample.gyro.z.radps;
       ang_pid_setpoint_ = target_angular_;
+      ang_pid_->SetMode(AUTOMATIC);
       ang_pid_->Compute();
     } else if (angular_mode_ == AngularMode::HEADING) {
       ang_pid_->SetMode(MANUAL);
@@ -127,6 +127,8 @@ void DifferentialDriveWithImu::Update() {
 
     left_motor_->SetTargetVelocity(left_target_velocity * ticks_per_meter_);
     right_motor_->SetTargetVelocity(right_target_velocity * ticks_per_meter_);
+  } else {
+    ang_pid_output_ = 0;
   }
 
   left_motor_->Update();

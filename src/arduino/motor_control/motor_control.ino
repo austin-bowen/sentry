@@ -100,13 +100,13 @@ void setup() {
 
 
 void setup_async_debug() {
-  Async::FuncId id = async.RunForever(100, []() {
-    // print_async_stats();
+  Async::FuncId id = async.RunForever(1000, []() {
+    print_async_stats();
     // print_imu_sample();
     // print_battery_stats();
     // print_encoders();
     // print_motor_controllers();
-    print_locomotion();
+    // print_locomotion();
   });
   async.GetFunc(id)->name = "debug";
 }
