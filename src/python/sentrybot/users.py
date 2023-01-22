@@ -12,4 +12,10 @@ def login_checker(creds: Dict[str, str]) -> bool:
     password = creds['password']
 
     users = config.website.users.value
-    return username in users and password == users[username]
+
+    if username in users and password == users[username]:
+        print(f'AUTH: User logged in: {username}')
+        return True
+    else:
+        print(f'AUTH: User failed to log in: {username}')
+        return False
