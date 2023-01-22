@@ -1,5 +1,7 @@
 [Unit]
 Description=Sentry services
+Wants=network-online.service
+After=network-online.service
 
 [Service]
 ExecStart=/home/pi/sentry/sentry.sh
