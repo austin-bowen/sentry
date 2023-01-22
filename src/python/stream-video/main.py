@@ -35,9 +35,9 @@ def build_camera():
 
 
 def build_camera_capturer():
-    camera_capturer = CameraCapturer(build_camera(), print_fps=config.camera.print_fps)
-    camera_capturer.start()
-    return camera_capturer
+    cc = CameraCapturer(build_camera(), print_fps=config.camera.print_fps)
+    cc.start()
+    return cc
 
 
 camera_capturer = build_camera_capturer()
