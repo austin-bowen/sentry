@@ -96,6 +96,15 @@ def handle_reboot():
         os.system('sudo reboot')
 
 
+@socketio.on('restart_service')
+def handle_restart_service():
+    print('Restarting service!')
+
+    if config.is_sentry:
+        time.sleep(1)
+        os.system('sudo systemctl restart sentry.service')
+
+
 def main():
     print(f'config={config}\n')
 

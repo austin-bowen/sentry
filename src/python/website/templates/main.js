@@ -59,6 +59,17 @@ function setupButtons(socket) {
       socket.emit('reboot')
     }
   }
+
+  // Restart service button
+  button = document.getElementById('restart_service_button')
+  button.onclick = () => {
+    const reboot = confirm('Restart Sentry service?')
+
+    if (reboot) {
+      console.log('Restart service')
+      socket.emit('restart_service')
+    }
+  }
 }
 
 function setupVideoFeed() {
