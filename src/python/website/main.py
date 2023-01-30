@@ -83,7 +83,7 @@ def handle_shutdown():
     print('Shutting down!')
 
     if config.is_sentry:
-        time.sleep(1)
+        socketio.sleep(1)
         os.system('sudo shutdown -h now')
 
 
@@ -92,7 +92,7 @@ def handle_reboot():
     print('Rebooting!')
 
     if config.is_sentry:
-        time.sleep(1)
+        socketio.sleep(1)
         os.system('sudo reboot')
 
 
@@ -101,7 +101,7 @@ def handle_restart_service():
     print('Restarting service!')
 
     if config.is_sentry:
-        time.sleep(1)
+        socketio.sleep(1)
         os.system('sudo systemctl restart sentry.service')
 
 
