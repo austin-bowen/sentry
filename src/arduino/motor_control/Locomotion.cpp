@@ -125,6 +125,16 @@ void DifferentialDriveWithImu::Update() {
     float left_target_velocity = target_linear_ - angular;
     float right_target_velocity = target_linear_ + angular;
 
+    // Disallow forward/backward movement if tilting too far up/down
+    float safe_angle = PI / 6;
+    if (imu->sample.orient.pitch > safe_angle) {
+      left_target_velocity  = min(left_target_velocity,  0);
+      right_target_velocity = min(right_target_velocity, 0);
+    } else if (imu->sample.orient.pitch < -safe_angle) {
+      left_target_velocity  = max(left_target_velocity,  0);
+      right_target_velocity = max(right_target_velocity, 0);
+    }
+
     left_motor_->SetTargetVelocity(left_target_velocity * ticks_per_meter_);
     right_motor_->SetTargetVelocity(right_target_velocity * ticks_per_meter_);
   } else {
