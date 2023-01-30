@@ -1,4 +1,7 @@
+import sys
 from abc import abstractmethod
+
+from requests.exceptions import ConnectionError
 
 from sentrybot.ifttt import IFTTTWebhook
 
@@ -25,4 +28,8 @@ class IFTTTNotifier(ConsoleNotifier):
 
     def notify(self, message: str) -> None:
         super().notify(message)
-        self.ifttt.trigger('sentry_message', value1=message)
+
+        try:
+            self.ifttt.trigger('sentry_message', value1=message)
+        except ConnectionError as e:
+            print(e, file=sys.stderr)
