@@ -69,7 +69,16 @@ class DriveMotorController:
         self.set_target_heading(rad=new_heading)
 
     def get_status(self) -> 'DriveMotorControllerStatus':
-        ...
+        response = self._write_then_read_ack(Request.get_status())
+
+        battery_percent, = Response.GET_STATUS.unpack(response)
+
+        return DriveMotorControllerStatus(
+            left_motor=...,
+            right_motor=...,
+            body=...,
+            battery_percent=battery_percent,
+        )
 
     def disable(self):
         ...
@@ -82,14 +91,13 @@ class DriveMotorController:
 
         self._write_then_read_ack(Request.heartbeat())
 
-    def _write_then_read(self, data: bytes) -> Optional[bytes]:
-        return self.conn.write_then_read(data)
+    def _write_then_read_ack(self, data: bytes) -> bytes:
+        response = self.conn.write_then_read(data)
 
-    def _write_then_read_ack(self, data: bytes) -> None:
-        response = self._write_then_read(data)
-
-        if response != Response.ACK:
+        if response[0:1] != Response.ACK:
             raise MotorControlError(f'Expected to receive ACK; response={response}')
+
+        return response[1:]
 
 
 def _as_rad(rad: Optional[float], deg: Optional[float]) -> float:
@@ -140,6 +148,7 @@ class Request:
 class Response:
     ACK = b'\x00'
     NCK = b'\x01'
+    GET_STATUS = Struct('>B')
 
 
 @dataclass
@@ -147,7 +156,7 @@ class DriveMotorControllerStatus:
     left_motor: 'MotorStatus'
     right_motor: 'MotorStatus'
     body: 'BodyStatus'
-    battery_voltage: float
+    battery_percent: int
 
 
 @dataclass
@@ -288,11 +297,17 @@ def test6(motors: DriveMotorController):
         time.sleep(10)
 
 
+def test_get_status(motors: DriveMotorController):
+    while True:
+        print(motors.get_status())
+        time.sleep(1)
+
+
 def main():
     motors = DriveMotorController.connect('/dev/ttyACM0')
 
     try:
-        test6(motors)
+        test_get_status(motors)
     finally:
         print('stop')
         motors.stop()

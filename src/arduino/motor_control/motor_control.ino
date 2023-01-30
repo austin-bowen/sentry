@@ -264,7 +264,7 @@ void handle_commands() {
     return;
   }
 
-  byte response[1] = {ACK};
+  byte response[2] = {ACK};
   int response_len = 1;
 
   byte command = read_buffer[0];
@@ -272,6 +272,8 @@ void handle_commands() {
     // TODO
   } else if (command == COMMAND_GET_STATUS) {
     // TODO
+    response[1] = battery_monitor.GetLevel();
+    response_len = 2;
   } else if (command == COMMAND_SET_LINEAR_VELOCITY) {
     short linear_cm = ((short)read_buffer[1] << 8) | (short)read_buffer[2];
     float linear = linear_cm / 100.f;
