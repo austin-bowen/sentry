@@ -2,6 +2,7 @@ from socket import gethostname
 
 from sentrybot.config.config import Config
 from sentrybot.config.secrets import secrets
+from sentrybot.notification import IFTTTNotifier, ConsoleNotifier
 
 HOSTNAME = gethostname()
 
@@ -19,6 +20,8 @@ config = Config(
             path='/dev/ttyACM0',
         ),
     ),
+    notifier=(IFTTTNotifier.build(secrets.ifttt.webhooks.key.value)
+              if IS_SENTRY else ConsoleNotifier()),
     platform=SENTRY if IS_SENTRY else DEV,
     website=Config(
         host='0.0.0.0',

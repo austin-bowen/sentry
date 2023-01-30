@@ -42,10 +42,13 @@ else:
                 battery_percent=100,
             )
 
+
     try:
         motor_controller = DriveMotorController.connect(config.motor_control.serial.path)
     except SerialException:
         motor_controller = DummyMotorController()
+
+notifier = config.notifier
 
 
 @app.route('/')
@@ -117,18 +120,22 @@ def handle_restart_service():
 
 def main():
     print(f'config={config}\n')
+    notifier.notify('Starting up')
 
     SimpleLogin(app, login_checker=login_checker)
 
     StatusEmitter.build(socketio, motor_controller)
 
-    socketio.run(
-        app,
-        host=config.website.host,
-        port=config.website.port,
-        debug=True,
-        use_reloader=False,
-    )
+    try:
+        socketio.run(
+            app,
+            host=config.website.host,
+            port=config.website.port,
+            debug=True,
+            use_reloader=False,
+        )
+    finally:
+        notifier.notify('Shutting down')
 
 
 if __name__ == '__main__':
