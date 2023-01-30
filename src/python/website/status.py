@@ -7,6 +7,7 @@ import psutil
 from flask_socketio import SocketIO
 
 from sentrybot.config.main import config
+from sentrybot.motorcontrol import DriveMotorController
 from sentrybot.vcgencmd import get_throttled, ThrottlingResult
 
 
@@ -22,8 +23,8 @@ class StatusEmitter:
         self.emit_period = emit_period
 
     @staticmethod
-    def build(socketio: SocketIO) -> 'StatusEmitter':
-        supplier = StatusSupplier()
+    def build(socketio: SocketIO, motor_controller: DriveMotorController) -> 'StatusEmitter':
+        supplier = StatusSupplier(motor_controller)
         emitter = StatusEmitter(supplier, socketio)
         socketio.start_background_task(emitter.run)
         return emitter
@@ -49,6 +50,9 @@ class StatusEmitter:
 class StatusSupplier:
     WIFI_BIT_RATE_PATTERN = re.compile(r'.*Bit Rate=(\d+)', flags=re.DOTALL)
 
+    def __init__(self, motor_controller: DriveMotorController):
+        self.motor_controller = motor_controller
+
     def get_status(self) -> 'Status':
         cpu_usage_avg, cpu_usage_max = self.get_cpu_usage()
 
@@ -57,6 +61,8 @@ class StatusSupplier:
         except FileNotFoundError:
             throttling = None
 
+        motor_controller_status = self.motor_controller.get_status()
+
         return Status(
             loadavg=self.get_loadavg(),
             cpu_usage_avg=cpu_usage_avg,
@@ -64,6 +70,7 @@ class StatusSupplier:
             mem_usage=psutil.virtual_memory().percent,
             wifi_bit_rate_Mbps=self.get_wifi_bit_rate(),
             throttling=throttling,
+            battery_percent=motor_controller_status.battery_percent,
         )
 
     def get_loadavg(self) -> str:
@@ -116,6 +123,7 @@ class Status:
     mem_usage: float
     wifi_bit_rate_Mbps: Optional[float]
     throttling: Optional[ThrottlingResult]
+    battery_percent: int
 
     def to_html(self) -> str:
         wifi_speed = (
@@ -124,11 +132,16 @@ class Status:
             f'Unknown'
         )
 
+        battery = f'{self.battery_percent}%'
+        if self.battery_percent < 10:
+            battery = f'<strong style="color: red;">{battery}</strong>'
+
         result = rf'''
             <strong>loadavg:</strong> {self.loadavg}<br>
             <strong>CPU (avg/max):</strong> {round(self.cpu_usage_avg)}/{round(self.cpu_usage_max)}%<br>
             <strong>Memory:</strong> {round(self.mem_usage)}%<br>
-            <strong>WiFi Speed:</strong> {wifi_speed}
+            <strong>WiFi Speed:</strong> {wifi_speed}<br>
+            <strong>Battery:</strong> {battery}
         '''
 
         if self.throttling and self.throttling.is_throttled:

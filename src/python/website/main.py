@@ -7,7 +7,7 @@ from flask_socketio import SocketIO
 from serial import SerialException
 
 from sentrybot.config.main import config
-from sentrybot.motorcontrol import DriveMotorController
+from sentrybot.motorcontrol import DriveMotorController, DriveMotorControllerStatus
 from sentrybot.users import login_checker
 from status import StatusEmitter
 
@@ -34,8 +34,18 @@ else:
         def set_angular_velocity(self, *args, **kwargs):
             pass
 
+        def get_status(self) -> DriveMotorControllerStatus:
+            return DriveMotorControllerStatus(
+                left_motor=...,
+                right_motor=...,
+                body=...,
+                battery_percent=100,
+            )
 
-    motor_controller = DummyMotorController()
+    try:
+        motor_controller = DriveMotorController.connect(config.motor_control.serial.path)
+    except SerialException:
+        motor_controller = DummyMotorController()
 
 
 @app.route('/')
@@ -110,7 +120,7 @@ def main():
 
     SimpleLogin(app, login_checker=login_checker)
 
-    StatusEmitter.build(socketio)
+    StatusEmitter.build(socketio, motor_controller)
 
     socketio.run(
         app,
