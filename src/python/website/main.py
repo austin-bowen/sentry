@@ -14,7 +14,15 @@ from status import StatusEmitter
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.website.secret_key.value
 
-socketio = SocketIO(app, logger=True, engineio_logger=True)
+socketio = SocketIO(
+    app,
+    logger=True,
+    engineio_logger=True,
+    cors_allowed_origins=(
+        'http://sentry:8080',
+        'https://sentry.austinbowen.dev',
+    ),
+)
 
 if config.is_sentry:
     while True:
